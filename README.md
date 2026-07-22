@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Gems Assistant
 
 Gems Assistant is an AI-powered desktop assistant for Windows. It listens for a wake word ("Gems"), can converse in any language, translate, give suggestions, and execute user commands. On first run, it requests permission to access device controls and is set to run at startup.
@@ -41,3 +42,6 @@ python backend.py
 Notes:
 - This backend is a lightweight demo that simulates creating an order. Integrate a real payment gateway and operator APIs to make it production-ready.
 
+=======
+# himalayandigitals
+>>>>>>> 772a9cd5e04666fcb9cdf3f3d0271ea42c04b50e
