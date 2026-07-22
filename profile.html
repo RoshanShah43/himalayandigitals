@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile - RS Bazar</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .profile-container {
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+        .profile-header {
+            background: linear-gradient(135deg, #2b9be3, #1e7ab8);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .profile-header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+        .profile-header p {
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+        }
+        .orders-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .orders-section h2 {
+            color: #333;
+            margin-top: 0;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .order-card {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+        .order-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .order-game {
+            font-weight: 600;
+            color: #333;
+            font-size: 16px;
+        }
+        .order-status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .order-status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .order-status.completed {
+            background: #d4edda;
+            color: #155724;
+        }
+        .order-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .detail-item {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 3px solid #2b9be3;
+        }
+        .detail-label {
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 3px;
+        }
+        .detail-value {
+            color: #333;
+            font-weight: 600;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        .empty-state h3 {
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: #f0f0f0;
+            color: #333;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: all 0.2s;
+        }
+        .back-btn:hover {
+            background: #e0e0e0;
+        }
+        .logout-btn {
+            display: inline-block;
+            margin-left: 10px;
+            padding: 10px 20px;
+            background: #ff6b6b;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .logout-btn:hover {
+            background: #ff5252;
+        }
+    </style>
+</head>
+<body>
+    <div class="profile-container">
+        <div style="margin-bottom: 20px;">
+            <a href="hlo.html" class="back-btn">← Back to Home</a>
+            <button class="logout-btn" id="logoutBtn">Logout</button>
+        </div>
+
+        <div class="profile-header">
+            <h1>My Profile</h1>
+            <p>Welcome, <strong id="username">User</strong></p>
+            <p style="margin-top: 15px; font-size: 14px;">View your orders and their status below</p>
+        </div>
+
+        <div class="orders-section">
+            <h2>My Orders</h2>
+            <div id="ordersContainer"></div>
+        </div>
+    </div>
+
+    <script>
+// API call helper function
+async function apiCall(endpoint, options = {}) {
+    const baseURL = 'http://127.0.0.1:5000';
+    const url = `${baseURL}${endpoint}`;
+
+            const defaultOptions = {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                ...options
+            };
+
+            // Add authorization header if user is logged in
+            const token = localStorage.getItem('token');
+            if (token) {
+                defaultOptions.headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            try {
+                const response = await fetch(url, defaultOptions);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || `HTTP error! status: ${response.status}`);
+                }
+
+                return data;
+            } catch (error) {
+                console.error('API call failed:', error);
+                throw error;
+            }
+        }
+
+        // Check if user is logged in
+        document.addEventListener('DOMContentLoaded', async function() {
+            const loggedInUser = localStorage.getItem('loggedInUser');
+            const userId = localStorage.getItem('userId');
+
+            if (loggedInUser) {
+                // User is logged in - show their profile
+                document.getElementById('username').textContent = loggedInUser;
+
+                // Load and display user's orders
+                displayUserOrders(loggedInUser);
+
+                // Setup logout
+                document.getElementById('logoutBtn').addEventListener('click', function() {
+                    localStorage.removeItem('loggedInUser');
+                    localStorage.removeItem('isAdmin');
+                    localStorage.removeItem('userId');
+                    window.location.href = 'login.html';
+                });
+            } else {
+                // User is not logged in - show guest profile
+                document.getElementById('username').textContent = 'Guest';
+                document.getElementById('logoutBtn').textContent = 'Login';
+                document.getElementById('logoutBtn').addEventListener('click', function() {
+                    window.location.href = 'login.html';
+                });
+
+                // Show message for non-logged-in users
+                document.getElementById('ordersContainer').innerHTML = `
+                    <div class="empty-state">
+                        <h3>Please Login</h3>
+                        <p>You need to login to view your orders and profile information.</p>
+                        <a href="login.html" style="display: inline-block; margin-top: 15px; padding: 10px 20px; background: #2b9be3; color: white; text-decoration: none; border-radius: 5px;">Login Now</a>
+                    </div>
+                `;
+            }
+        });
+
+        function displayUserOrders(username) {
+            const allOrders = JSON.parse(localStorage.getItem('gameCart') || '[]');
+            const container = document.getElementById('ordersContainer');
+
+            if (!allOrders.length) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No Orders Yet</h3>
+                        <p>You haven't placed any orders. Start shopping!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Filter orders for this user by username
+            const userOrders = allOrders.filter(order => {
+                const orderUser = order.username || order.customer?.name || '';
+                return orderUser.toLowerCase() === username.toLowerCase();
+            });
+
+            if (!userOrders.length) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No Orders Found</h3>
+                        <p>You haven't placed any orders yet.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const html = userOrders.map((order, idx) => {
+                const status = order.status || 'Pending';
+                const statusClass = status.toLowerCase() === 'completed' ? 'completed' : 'pending';
+                const date = order.timestamp ? new Date(order.timestamp).toLocaleString() : 'N/A';
+
+                return `
+                    <div class="order-card">
+                        <div class="order-header">
+                            <span class="order-game">${order.gameTitle || 'Game'}</span>
+                            <span class="order-status ${statusClass}">${status}</span>
+                        </div>
+                        <div class="order-details">
+                            <div class="detail-item">
+                                <div class="detail-label">Package</div>
+                                <div class="detail-value">${order.packageLabel || order.packLabel || 'N/A'}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">UID</div>
+                                <div class="detail-value">${order.uid || 'N/A'}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Quantity</div>
+                                <div class="detail-value">${order.quantity || 1}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Price</div>
+                                <div class="detail-value">Rs. ${order.total || order.price || 0}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Date</div>
+                                <div class="detail-value">${date}</div>
+                            </div>
+                            ${order.esewaCode ? `
+                            <div class="detail-item">
+                                <div class="detail-label">eSewa Code</div>
+                                <div class="detail-value">${order.esewaCode}</div>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
