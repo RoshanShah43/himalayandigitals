@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+<meta name="description" content="Top Up RS Bazar - Instant game top-ups and digital products with best rates">
+<meta name="theme-color" content="#ff3b2e">
+<title>Top Up RS-Bazar</title>
+
+<!-- Preload critical resources -->
+<link rel="preload" href="styles.css" as="style">
+<link rel="preload" href="script.js" as="script">
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="script.js"></script>
+<header>
+    <div class="container header-inner">
+        <div class="logo"><img src="assets/logo.svg" alt="RS BAZAR" class="logo-img"></div>
+        <nav class="nav">
+            <a href="#">Home</a>
+            <a href="#games">Shop</a>
+            <a href="#contact">Contact</a>
+            <div class="cart-wrapper" onclick="toggleCart()" style="cursor:pointer;">
+                <span class="cart" aria-hidden="true"></span>
+                <span class="cart-badge" id="cartBadge">0</span>
+            </div>
+          
+            <div id="loginBtn" class="btn-login" style="display: block;">
+                <a href="login.html">Login</a>
+            </div>
+            <div id="profileSection" class="profile-section" style="display: none;">
+                <div class="profile-dropdown">
+                    <button class="profile-btn" id="profileBtn">
+                        <span id="profileUsername">User</span>
+                        <span class="profile-arrow">▼</span>
+                    </button>
+                    <div class="profile-menu" id="profileMenu">
+                        <a href="#" id="profileLink">Profile</a>
+                        <a href="admin.html" id="adminPanelLink" style="display:none;">Admin Panel</a>
+                        <a href="#" id="logoutBtn">Logout</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </div>
+</header>
+<!-- Hero banner at top -->
+<section class="hero">
+    <div class="container">
+        <div class="hero-banner">
+            <div class="banner-glow"></div>
+            <div class="banner-content">
+                <div class="banner-text-left">
+                    <h1 class="banner-title">INSTANT<span class="highlight">TOPUP</span></h1>
+                    <p class="banner-subtitle">Varities of Games</p>
+                    <div class="banner-badges">
+                        <span class="badge-fast">⚡ Instant Delivery</span>
+                        <span class="badge-secure">🔒 100% Secure</span>
+                    </div>
+                </div>
+                <div class="banner-logo-center">
+                    <img src="https://image2url.com/images/1766214401911-dc85818d-808f-42b6-bd59-1d3d4691f574.jpeg" alt="RS BAZAR" class="banner-logo">
+                    <p class="neon-text">RS BAZAR</p>
+                </div>
+                <div class="banner-text-right">
+                    <div class="status-box">
+                        <span class="open-pill">🟢 OPEN NOW</span>
+                        <span class="hours">📱 11:00 AM - 10:00 PM</span>
+                        <span class="helpline">📞 Helpline: 9813920517</span>
+                    </div>
+                    <p class="cta-text">Best Rates Guaranteed!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Games selection below hero -->
+<section id="games" class="games container" style="margin-top:18px;padding-top:18px;padding-bottom:28px;">
+    <h2>Online Games</h2>
+    <div class="games-grid" id="gamesGrid">
+        <div class="game-card" onclick="openProductModal('mobilelegends')" style="cursor:pointer;">
+            <img src="https://sm.ign.com/ign_za/cover/m/mobile-leg/mobile-legends-bang-bang_c6z8.jpg" alt="Mobile Legends">
+            <h3>Mobile Legends</h3>
+            <p>Games</p>
+        </div>
+        <div class="game-card" onclick="openProductModal('freefire')" style="cursor:pointer;">
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT8JMInACAGRr5zMiWcijo_VX2B_9-5vxucxg&s" alt="Free Fire">
+            <h3>Free Fire</h3>
+            <p>Games</p>
+        </div>
+        <div class="game-card" onclick="openProductModal('roblox')" style="cursor:pointer;">
+            <img src="https://yt3.googleusercontent.com/xTxr7gmbkxiPKjrmN5ut0Kn8UcHpkkgyTv-_EeDPphcQusrWyKfSZw13EKCYXQyYdeoC3ON1zQ=s900-c-k-c0x00ffffff-no-rj" alt="Roblox">
+            <h3>Roblox</h3>
+            <p>Games</p>
+        </div>
+        <div class="game-card" onclick="openProductModal('pubg')" style="cursor:pointer;">
+            <img src="https://www.vice.com/wp-content/uploads/sites/2/2018/12/1545803974526-40176727491_31da2b03d8_b.jpeg" alt="PUBG Mobile">
+            <h3>PUBG Mobile</h3>
+            <p>Games</p>
+        </div>
+        <div class="game-card" onclick="openProductModal('genshin')" style="cursor:pointer;">
+            <img src="https://image.api.playstation.com/vulcan/ap/rnd/202509/0403/96df20a522e1004e3da998220ab2ded47797478ccda64bd8.png" alt="Genshin Impact">
+            <h3>Genshin Impact</h3>
+            <p>Games</p>
+        </div>
+        <div class="game-card" onclick="openProductModal('bloodstrike')" style="cursor:pointer;">
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcThWUdqCnnkYVy4kmDTkRycGXzMBnwyqua01S_-bnwWoxGDGCXOisqm7VuHphZxzh4b1Er5&s=10" alt="Blood Strike">
+            <h3>Blood Strike</h3>
+            <p>Games</p>
+        </div>
+    </div>
+</section>
+
+<!-- Game Shopping Modal -->
+<div id="gameShoppingModal" class="shopping-modal" aria-hidden="true" style="display:none;">
+    <div class="shopping-modal-content">
+        <button class="modal-close" onclick="closeProductModal()" aria-label="Close">❌</button>
+        
+        <div class="shopping-grid">
+            <!-- Left side - Game info -->
+            <div class="shopping-left">
+                <div class="game-showcase">
+                    <img id="gameImage" src="" alt="Game" class="showcase-image">
+                    <div class="game-info">
+                        <span class="game-category" id="gameCategory">Games</span>
+                        <h2 id="gameTitle">Game Title</h2>
+                        <p id="gameDescription">Game Description</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right side - Purchase form -->
+            <div class="shopping-right">
+                <!-- Step 1: Account Data -->
+                <div class="purchase-step">
+                    <div class="step-header">
+                        <span class="step-number">1</span>
+                        <h3>Enter Your Account Data</h3>
+                    </div>
+                    <div class="form-group">
+                        <label for="accountUID">UID *</label>
+                            <input type="text" id="accountUID" placeholder="Enter your UID" required>
+                        </div>
+                        <div class="form-group" id="serverGroup" style="display:none;">
+                            <label for="serverID">Server ID</label>
+                            <input type="text" id="serverID" placeholder="Enter Server ID (for Mobile Legends)">
+                    </div>
+                </div>
+
+                <!-- Step 2: Select Package -->
+                <div class="purchase-step">
+                    <div class="step-header">
+                        <span class="step-number">2</span>
+                        <h3>Select the best option for you</h3>
+                    </div>
+                    <div class="packages-grid" id="packagesGrid">
+                        <!-- Packages will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Quantity -->
+                <div class="quantity-section">
+                    <label>Quantity</label>
+                    <div class="quantity-control">
+                        <button class="qty-btn" id="qtyDecrement" onclick="var q=document.getElementById('quantity');if(q.value>1)q.value=parseInt(q.value)-1;">−</button>
+                        <input type="number" id="quantity" value="1" min="1" readonly>
+                        <button class="qty-btn" id="qtyIncrement" onclick="var q=document.getElementById('quantity');q.value=parseInt(q.value)+1;">+</button>
+                    </div>
+                </div>
+
+                <!-- Add to Cart -->
+                <button class="add-to-cart-btn" id="addToCartBtn" onclick="handleAddToCart()">Add to Cart</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<!-- Membership section -->
+<section class="section">
+  <h2>Subscriptions</h2>
+    <div class="games-grid container">
+        <div class="game-card" onclick="openProductModal('weekly_membership')" style="cursor:pointer;"><img src="https://topup.tusargautam.com.np/storage/products/01K8QB7BXM8NX7TYEZ6BGFHWAW.png" alt="Weekly Membership" loading="lazy"><h4>ChatGPT</h4></div>
+        <div class="game-card" onclick="openProductModal('monthly_membership')" style="cursor:pointer;"><img src="https://c2c.fp3.guinfra.com/file/67d3f3c25e3caa15d42569bdD8L6TyRK03?fop=imageView/2/w/340/h/340" alt="Monthly Membership" loading="lazy"><h4>Gemini</h4></div>
+        <div class="game-card" onclick="openProductModal('weekly_lite')" style="cursor:pointer;"><img src="https://www.ygmarketplace.com/storage/app/public/product/2024-09-05-66d99466c1673.webp" alt="Weekly Lite" loading="lazy"><h4>YouTube</h4></div>
+        <div class="game-card" onclick="openProductModal('levelup_pass')" style="cursor:pointer;"><img src="https://bakuzone.com/assets/uploads/category/6832da11a63d11748163089.webp" alt="Level-Up Pass" loading="lazy"><h4>Level-Up Pass</h4></div>
+    </div>
+</section>
+
+<!-- Level Up Package -->
+<section class="section">
+  <h2>Level Up Package</h2>
+    <div class="games-grid container">
+        <div class="game-card" onclick="openProductModal('levelup_6')" style="cursor:pointer;"><img src="https://topup.tusargautam.com.np/storage/products/01K8QCPCKP5HPXJPHE7TP1ZRWD.png" alt="Level 6" loading="lazy"><h4>Level Up Package Level 6</h4></div>
+        <div class="game-card" onclick="openProductModal('levelup_10')" style="cursor:pointer;"><img src="https://topup.tusargautam.com.np/storage/products/01K8QCPCKP5HPXJPHE7TP1ZRWD.png" alt="Level 10" loading="lazy"><h4>Level Up Package Level 10</h4></div>
+        <div class="game-card" onclick="openProductModal('levelup_15')" style="cursor:pointer;"><img src="https://topup.tusargautam.com.np/storage/products/01K8QCPCKP5HPXJPHE7TP1ZRWD.png" alt="Level 15" loading="lazy"><h4>Level Up Package Level 15</h4></div>
+        <div class="game-card" onclick="openProductModal('levelup_20')" style="cursor:pointer;"><img src="https://topup.tusargautam.com.np/storage/products/01K8QCPCKP5HPXJPHE7TP1ZRWD.png" alt="Level 20" loading="lazy"><h4>Level Up Package Level 20</h4></div>
+        <div class="game-card" onclick="openProductModal('levelup_25')" style="cursor:pointer;"><img src="https://topup.tusargautam.com.np/storage/products/01K8QCPCKP5HPXJPHE7TP1ZRWD.png" alt="Level 25" loading="lazy"><h4>Level Up Package Level 25</h4></div>
+    </div>
+</section>
+
+<section id="delivery" class="section">
+    <h2>Delivery Time</h2>
+    <p>Most top-ups are delivered within <b>1–5 minutes</b>.  
+    Passes and special events may take <b>5–10 minutes</b>.</p>
+</section>
+
+
+
+
+<!-- Contact Section -->
+<section id="contact" class="contact-section">
+    <div class="container contact-grid">
+        <div class="contact-box">
+            <h3>Contact Info</h3>
+            <p><strong>Email:</strong> <a href="mailto:rsbazar47.com">rsbazar47@gmail.com</a></p>
+            <p><strong>Phone:</strong> <a href="tel:9813920517">Helpline: 9813920517</a></p>
+        </div>
+        <div class="contact-box">
+            <h3>Quick Links</h3>
+            <ul>
+                <li><a href="#games">Shop</a></li>
+                <li><a href="#contact">Contact</a></li>
+                <li><a href="#">Become a Dealer</a></li>
+                <li><a href="#">Terms & Conditions</a></li>
+            </ul>
+        </div>
+        <div class="contact-box">
+            <h3>Follow Us</h3>
+            <div class="social-links">
+                <a href="https://facebook.com" target="_blank">📘 Facebook</a>
+                <a href="https://www.tiktok.com/@rs.bazar" target="_blank">Tiktok</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Order form removed as requested -->
+
+<footer>
+    © 2025 Top Up RS Bazar — Official Site
+</footer>
+
+<!-- Cart Drawer -->
+<div id="cartDrawer" class="cart-drawer" aria-hidden="true">
+    <div class="cart-drawer-header">
+        <h3>Shopping Cart</h3>
+        <button class="cart-drawer-close" onclick="toggleCart()">×</button>
+    </div>
+    <div class="cart-drawer-body">
+        <div id="emptyCartMsg" class="empty-cart-message">
+            Your cart is empty. Start shopping!
+        </div>
+        <div id="cartItemsList" class="cart-items-list"></div>
+    </div>
+    <div class="cart-drawer-footer">
+        <div class="cart-total-row">
+            <span>Total:</span>
+            <span id="cartTotal" class="cart-total-price">Rs0</span>
+        </div>
+        <button class="checkout-btn" onclick="proceedToCheckout()">Proceed to Checkout</button>
+    </div>
+</div>
+
+<!-- Checkout Modal -->
+<div id="checkoutModal" class="checkout-modal" aria-hidden="true">
+    <div class="checkout-modal-content">
+        <button class="modal-close" onclick="document.getElementById('checkoutModal').classList.remove('open'); document.getElementById('checkoutModal').setAttribute('aria-hidden', 'true');">×</button>
+        
+        <h2>Checkout</h2>
+        
+        <div class="checkout-container">
+            <!-- Order Summary -->
+            <div class="checkout-summary">
+                <h3>Order Summary</h3>
+                <div id="checkoutCartSummary" class="checkout-items">
+                </div>
+                <div class="checkout-total">
+                    <strong>Total Amount:</strong>
+                    <strong id="checkoutTotal">Rs0</strong>
+                </div>
+            </div>
+
+            <!-- Checkout Form -->
+            <form id="checkoutForm" class="checkout-form">
+                <h3>Payment Information</h3>
+
+                <div class="form-group">
+                    <label for="paymentMethod">Payment Method *</label>
+                    <select id="paymentMethod" required>
+                        <option value="esewa">eSewa</option>
+                    </select>
+                </div>
+
+                <!-- eSewa instructions & generated code (filled by script) -->
+                <div class="form-group esewa-block" style="margin-top:8px;">
+                    <h4>eSewa Payment</h4>
+                    <img src="esewa.jpeg" alt="eSewa QR" style="max-width:140px;display:block;margin-bottom:8px;">
+                    <p style="margin:6px 0;color:#333;font-size:14px;">Write this code in the eSewa remarks before paymenting</p>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <div id="esewaCode" style="background:#f5f5f5;padding:8px 12px;border-radius:6px;font-weight:700;">—</div>
+                        <button type="button" id="copyEsewaCodeBtn" class="copy-btn">Copy</button>
+                    </div>
+                </div>
+
+                <button type="submit" class="place-order-btn">Place Order</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Notification -->
+<div class="notification-container"></div>
+
+<!-- Site Login Modal (for admin quick access) -->
+<div id="siteLoginModal" class="modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true">
+        <button class="modal-close" id="siteLoginClose" aria-label="Close">×</button>
+        <h3>Admin Login</h3>
+        <form id="siteLoginForm">
+            <div style="margin-bottom:10px">
+                <label for="siteUsername">Username</label>
+                <input id="siteUsername" type="text" placeholder="admin" style="width:100%;padding:8px;margin-top:6px;border:1px solid #ddd;border-radius:6px">
+            </div>
+            <div style="margin-bottom:12px">
+                <label for="sitePassword">Password</label>
+                <input id="sitePassword" type="password" placeholder="admin123" style="width:100%;padding:8px;margin-top:6px;border:1px solid #ddd;border-radius:6px">
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end">
+                <button type="submit" class="buy-btn">Login</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- User Login Modal -->
+<div id="userLoginModal" class="modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true">
+        <button class="modal-close" id="userLoginClose" aria-label="Close">×</button>
+        <h3>User Login</h3>
+        <form id="userLoginForm">
+            <div style="margin-bottom:10px">
+                <label for="userUsername">Username or Email</label>
+                <input id="userUsername" type="text" placeholder="Enter username or email" style="width:100%;padding:8px;margin-top:6px;border:1px solid #ddd;border-radius:6px">
+            </div>
+            <div style="margin-bottom:12px">
+                <label for="userPassword">Password</label>
+                <input id="userPassword" type="password" placeholder="Enter password" style="width:100%;padding:8px;margin-top:6px;border:1px solid #ddd;border-radius:6px">
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end">
+                <button type="submit" class="buy-btn">Login</button>
+            </div>
+        </form>
+        <div style="margin-top:10px;text-align:center">
+            <a href="login.html" style="color:#2b9be3;text-decoration:none">Full Login/Sign Up Page</a>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============ INLINE SCRIPT - GUARANTEED TO WORK ============
+
+// Products Data
+var GAME_DATA = {
+  'mobilelegends': {
+    title: 'Mobile Legends',
+    image: 'https://sm.ign.com/ign_za/cover/m/mobile-leg/mobile-legends-bang-bang_c6z8.jpg',
+    category: 'Games',
+    description: 'Popular MOBA game with exciting gameplay.',
+    packages: [
+      { id: 'ml1', label: 'Mobile Legends 55 Diamonds', value: 182 },
+      { id: 'ml2', label: 'Mobile Legends 275 Diamonds', value: 862 },
+      { id: 'ml3', label: 'Mobile Legends 565 Diamonds', value: 1712 },
+      { id: 'ml4', label: 'Mobile Legends 1160 Diamonds', value: 3412 },
+      { id: 'ml5', label: 'Mobile Legends 1770 Diamonds', value: 5112 }
+    ]
+  },
+  'freefire': {
+    title: 'Free Fire',
+    image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT8JMInACAGRr5zMiWcijo_VX2B_9-5vxucxg&s',
+    category: 'Games',
+    description: 'Fast-paced battle royale game.',
+    packages: [
+      { id: 'ff1', label: 'Free Fire 25 Diamonds', value: 35 },
+      { id: 'ff2', label: 'Free Fire 50 Diamonds', value: 65 },
+      { id: 'ff3', label: 'Free Fire 115 Diamonds', value: 99 },
+      { id: 'ff4', label: 'Free Fire 240 Diamonds', value: 194 },
+      { id: 'ff5', label: 'Free Fire 355 Diamonds', value: 284 },
+      { id: 'ff6', label: 'Free Fire 440 Diamonds', value: 379 },
+      { id: 'ff7', label: 'Free Fire 610 Diamonds', value: 474 },
+      { id: 'ff8', label: 'Free Fire 725 Diamonds', value: 560 },
+      { id: 'ff9', label: 'Free Fire 840 Diamonds', value: 655 },
+      { id: 'ff10', label: 'Free Fire 965 Diamonds', value: 755 },
+      { id: 'ff11', label: 'Free Fire 1090 Diamonds', value: 835 },
+      { id: 'ff12', label: 'Free Fire 1240 Diamonds', value: 935 },
+      { id: 'ff13', label: 'Free Fire 2530 Diamonds', value: 1864 },
+      { id: 'ff14', label: 'Free Fire 5060 Diamonds', value: 3660 }
+    ]
+  },
+  'roblox': {
+    title: 'Roblox',
+    image: 'https://yt3.googleusercontent.com/xTxr7gmbkxiPKjrmN5ut0Kn8UcHpkkgyTv-_EeDPphcQusrWyKfSZw13EKCYXQyYdeoC3ON1zQ=s900-c-k-c0x00ffffff-no-rj',
+    category: 'Games',
+    description: 'Creative platform for building and playing games.',
+    packages: [
+      { id: 'r1', label: 'Roblox $10 Robux', value: 1725 },
+      { id: 'r2', label: 'Roblox $25 Robux', value: 4270 }
+    ]
+  },
+  'pubg': {
+    title: 'PUBG Mobile',
+    image: 'https://www.vice.com/wp-content/uploads/sites/2/2018/12/1545803974526-40176727491_31da2b03d8_b.jpeg',
+    category: 'Games',
+    description: 'Battle royale game with intense action.',
+    packages: [
+      { id: 'pg1', label: 'PUBG 60 UC', value: 178 },
+      { id: 'pg2', label: 'PUBG 120 UC', value: 399 },
+      { id: 'pg3', label: 'PUBG 325 UC', value: 865 },
+      { id: 'pg4', label: 'PUBG 385 UC', value: 1020 },
+      { id: 'pg5', label: 'PUBG 660 UC', value: 1628 },
+      { id: 'pg6', label: 'PUBG 720 UC', value: 1774 },
+      { id: 'pg7', label: 'PUBG 985 UC', value: 2444 },
+      { id: 'pg8', label: 'PUBG 1800 UC', value: 3915 },
+      { id: 'pg9', label: 'PUBG 3850 UC', value: 7815 },
+      { id: 'pg10', label: 'PUBG 8100 UC', value: 15142 }
+    ]
+  },
+  'genshin': {
+    title: 'Genshin Impact',
+    image: 'https://image.api.playstation.com/vulcan/ap/rnd/202509/0403/96df20a522e1004e3da998220ab2ded47797478ccda64bd8.png',
+    category: 'Games',
+    description: 'Open-world RPG with stunning visuals.',
+    packages: [
+      { id: 'gi1', label: '60 Genesis Crystals', value: 180 },
+      { id: 'gi2', label: '330 Genesis Crystals', value: 860 },
+      { id: 'gi3', label: '1,090 Genesis Crystals', value: 2560 },
+      { id: 'gi4', label: 'Blessing of the Welkin Moon', value: 860 }
+    ]
+  },
+  'bloodstrike': {
+    title: 'Blood Strike',
+    image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcThWUdqCnnkYVy4kmDTkRycGXzMBnwyqua01S_-bnwWoxGDGCXOisqm7VuHphZxzh4b1Er5&s=10',
+    category: 'Games',
+    description: 'Tactical shooter with team-based gameplay.',
+    packages: [
+      { id: 'bs1', label: 'Level-Up Pass', value: 360 },
+      { id: 'bs2', label: 'Strike Pass Elite', value: 520 },
+      { id: 'bs3', label: 'Strike Pass Elite Premium', value: 1540 },
+      { id: 'bs4', label: '50 Golds', value: 96 }
+    ]
+  },
+  // Membership Products
+  'weekly_membership': {
+    title: 'Weekly Membership',
+    image: 'https://topup.tusargautam.com.np/storage/products/01K8QB7BXM8NX7TYEZ6BGFHWAW.png',
+    category: 'Membership',
+    description: 'Weekly membership pass for Free Fire.',
+    packages: [
+      { id: 'wm1', label: 'Weekly Membership', value: 190 }
+    ]
+  },
+  'monthly_membership': {
+    title: 'Monthly Membership',
+    image: 'https://c2c.fp3.guinfra.com/file/67d3f3c25e3caa15d42569bdD8L6TyRK03?fop=imageView/2/w/340/h/340',
+    category: 'Membership',
+    description: 'Monthly membership pass for Free Fire.',
+    packages: [
+      { id: 'mm1', label: 'Monthly Membership', value: 935 }
+    ]
+  },
+  'weekly_lite': {
+    title: 'Weekly Lite',
+    image: 'https://www.ygmarketplace.com/storage/app/public/product/2024-09-05-66d99466c1673.webp',
+    category: 'Membership',
+    description: 'Weekly lite membership pass.',
+    packages: [
+      { id: 'wl1', label: 'Weekly Lite', value: 60 }
+    ]
+  },
+  'levelup_pass': {
+    title: 'Level-Up Pass',
+    image: 'https://bakuzone.com/assets/uploads/category/6832da11a63d11748163089.webp',
+    category: 'Membership',
+    description: 'Level-Up Pass for Free Fire.',
+    packages: [
+      { id: 'lp1', label: 'Level-Up Pass', value: 512 }
+    ]
+  },
+  // Level Up Packages
+  'levelup_6': {
+    title: 'Level Up Package Level 6',
+    image: 'https://topup.tusargautam.com.np/storage/products/01K8QCPCKP5HPXJPHE7TP1ZRWD.png',
+    category: 'Level Up',
+    description: 'Level Up Package to reach Level 6.',
+    packages: [
+      { id: 'lu6', label: 'Level 6 Package', value: 70 }
+    ]
+  },
+  'levelup_10': {
+    title: 'Level Up Package Level 10',
+    image: 'https://topup.tusargautam.com.np/storage/products/01K8QCPCKP5HPXJPHE7TP1ZRWD.png',
+    category: 'Level Up',
+    description: 'Level Up Package to reach Level 10.',
+    packages: [
+      { id: 'lu10', label: 'Level 10 Package', value: 100 }
+    ]
+  },
+  'levelup_15': {
+    title: 'Level Up Package Level 15',
+    image: 'https://topup.tusargautam.com.np/storage/products/01K8QCPCKP5HPXJPHE7TP1ZRWD.png',
+    category: 'Level Up',
+    description: 'Level Up Package to reach Level 15.',
+    packages: [
+      { id: 'lu15', label: 'Level 15 Package', value: 120 }
+    ]
+  },
+  'levelup_20': {
+    title: 'Level Up Package Level 20',
+    image: 'https://topup.tusargautam.com.np/storage/products/01K8QCPCKP5HPXJPHE7TP1ZRWD.png',
+    category: 'Level Up',
+    description: 'Level Up Package to reach Level 20.',
+    packages: [
+      { id: 'lu20', label: 'Level 20 Package', value: 130 }
+    ]
+  },
+  'levelup_25': {
+    title: 'Level Up Package Level 25',
+    image: 'https://topup.tusargautam.com.np/storage/products/01K8QCPCKP5HPXJPHE7TP1ZRWD.png',
+    category: 'Level Up',
+    description: 'Level Up Package to reach Level 25.',
+    packages: [
+      { id: 'lu25', label: 'Level 25 Package', value: 150 }
+    ]
+  }
+};
+
+var cart = [];
+try { cart = JSON.parse(localStorage.getItem('cart')) || []; } catch(e) { cart = []; }
+
+// Open Product Modal
+function openProductModal(gameId) {
+  var game = GAME_DATA[gameId];
+  if (!game) {
+    alert('Product not found: ' + gameId);
+    return;
+  }
+  
+  document.getElementById('gameImage').src = game.image;
+  document.getElementById('gameTitle').textContent = game.title;
+  document.getElementById('gameCategory').textContent = game.category;
+  document.getElementById('gameDescription').textContent = game.description;
+  document.getElementById('accountUID').value = '';
+  document.getElementById('quantity').value = 1;
+  
+  var pkgGrid = document.getElementById('packagesGrid');
+  pkgGrid.innerHTML = '';
+  
+  for (var i = 0; i < game.packages.length; i++) {
+    var pkg = game.packages[i];
+    var div = document.createElement('div');
+    div.className = 'package-option' + (i === 0 ? ' selected' : '');
+    div.setAttribute('data-id', pkg.id);
+    div.setAttribute('data-price', pkg.value);
+    div.setAttribute('data-label', pkg.label);
+    div.innerHTML = '<div class="package-name">' + pkg.label + '</div><div class="package-price">Rs' + pkg.value + '</div>';
+    div.onclick = function() {
+      var all = pkgGrid.querySelectorAll('.package-option');
+      for (var j = 0; j < all.length; j++) all[j].classList.remove('selected');
+      this.classList.add('selected');
+    };
+    pkgGrid.appendChild(div);
+  }
+  
+  var modal = document.getElementById('gameShoppingModal');
+  modal.setAttribute('data-game-id', gameId);
+  modal.style.display = 'flex';
+  modal.classList.add('open');
+  document.body.classList.add('modal-open');
+}
+
+// Close Product Modal
+function closeProductModal() {
+  var modal = document.getElementById('gameShoppingModal');
+  modal.style.display = 'none';
+  modal.classList.remove('open');
+  document.body.classList.remove('modal-open');
+}
+
+// Toggle Cart
+function toggleCart() {
+  var drawer = document.getElementById('cartDrawer');
+  if (drawer.classList.contains('open')) {
+    drawer.classList.remove('open');
+  } else {
+    drawer.classList.add('open');
+    renderCartItems();
+  }
+}
+
+// Add to Cart
+function handleAddToCart() {
+  var modal = document.getElementById('gameShoppingModal');
+  var gameId = modal.getAttribute('data-game-id');
+  var game = GAME_DATA[gameId];
+  var uid = document.getElementById('accountUID').value.trim();
+  var qty = parseInt(document.getElementById('quantity').value) || 1;
+  var selected = document.querySelector('#packagesGrid .package-option.selected');
+  
+  if (!uid) { alert('Please enter your UID'); return; }
+  if (!selected) { alert('Please select a package'); return; }
+  
+  cart.push({
+    id: Date.now(),
+    gameId: gameId,
+    gameTitle: game.title,
+    gameImage: game.image,
+    packageLabel: selected.getAttribute('data-label'),
+    price: parseInt(selected.getAttribute('data-price')),
+    quantity: qty,
+    accountUID: uid
+  });
+  
+  localStorage.setItem('cart', JSON.stringify(cart));
+  updateCartBadge();
+  closeProductModal();
+  showNotification(game.title + ' added to cart!');
+}
+
+// Update Cart Badge
+function updateCartBadge() {
+  var badge = document.getElementById('cartBadge');
+  if (badge) {
+    badge.textContent = cart.length;
+    badge.style.display = cart.length > 0 ? 'flex' : 'none';
+  }
+}
+
+// Render Cart Items
+function renderCartItems() {
+  var list = document.getElementById('cartItemsList');
+  var empty = document.getElementById('emptyCartMsg');
+  var total = document.getElementById('cartTotal');
+  
+  if (cart.length === 0) {
+    list.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+  if (total) total.textContent = 'Rs0';
+    return;
+  }
+  
+  if (empty) empty.style.display = 'none';
+  
+  var html = '';
+  var sum = 0;
+  for (var i = 0; i < cart.length; i++) {
+    var item = cart[i];
+    sum += item.price * item.quantity;
+    html += '<div class="cart-item"><img src="' + item.gameImage + '" class="cart-item-image"><div class="cart-item-details"><div class="cart-item-title">' + item.gameTitle + '</div><div class="cart-item-package">' + item.packageLabel + '</div><div class="cart-item-price">Rs' + (item.price * item.quantity) + '</div></div><button class="cart-item-remove" onclick="removeFromCart(' + item.id + ')">×</button></div>';
+  }
+  list.innerHTML = html;
+  if (total) total.textContent = 'Rs' + sum;
+}
+
+// Remove from Cart
+function removeFromCart(itemId) {
+  cart = cart.filter(function(item) { return item.id != itemId; });
+  localStorage.setItem('cart', JSON.stringify(cart));
+  updateCartBadge();
+  renderCartItems();
+}
+
+// Proceed to Checkout
+function proceedToCheckout() {
+  if (cart.length === 0) { alert('Your cart is empty!'); return; }
+  document.getElementById('cartDrawer').classList.remove('open');
+  
+  var summary = document.getElementById('checkoutCartSummary');
+  var total = document.getElementById('checkoutTotal');
+  var html = '';
+  var sum = 0;
+  
+  for (var i = 0; i < cart.length; i++) {
+    var item = cart[i];
+    sum += item.price * item.quantity;
+    html += '<div class="checkout-item"><span>' + item.gameTitle + ' - ' + item.packageLabel + '</span><span>Rs' + (item.price * item.quantity) + '</span></div>';
+  }
+  
+  if (summary) summary.innerHTML = html;
+  if (total) total.textContent = 'Rs' + sum;
+  
+  var code = '';
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789';
+  for (var i = 0; i < 5; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+  
+  var codeEl = document.getElementById('esewaCode');
+  if (codeEl) {
+    codeEl.textContent = code;
+    codeEl.setAttribute('data-code', code);
+  }
+  
+  document.getElementById('checkoutModal').classList.add('open');
+}
+
+// Place Order - clears cart after successful order
+function placeOrder(event) {
+  event.preventDefault();
+  
+  var user = localStorage.getItem('loggedInUser');
+  if (!user) {
+    alert('Please login to place an order');
+    window.location.href = 'login.html';
+    return;
+  }
+  
+  if (cart.length === 0) {
+    alert('Your cart is empty!');
+    return;
+  }
+  
+  var code = document.getElementById('esewaCode').getAttribute('data-code') || 'N/A';
+  
+  // Save order to localStorage for admin
+  var orders = [];
+  try { orders = JSON.parse(localStorage.getItem('gameCart')) || []; } catch(e) { orders = []; }
+  
+  for (var i = 0; i < cart.length; i++) {
+    var item = cart[i];
+    orders.push({
+      id: 'ORD-' + Date.now() + '-' + i,
+      gameTitle: item.gameTitle,
+      packLabel: item.packageLabel,
+      uid: item.accountUID,
+      quantity: item.quantity,
+      price: item.price,
+      total: item.price * item.quantity,
+      username: user,
+      esewaCode: code,
+      timestamp: new Date().toISOString(),
+      status: 'Pending'
+    });
+  }
+  
+  localStorage.setItem('gameCart', JSON.stringify(orders));
+  
+  // Clear the cart
+  cart = [];
+  localStorage.setItem('cart', JSON.stringify(cart));
+  updateCartBadge();
+  
+  // Close checkout modal
+  document.getElementById('checkoutModal').classList.remove('open');
+  
+  // Show success message
+  alert('Order placed successfully!\n\neSewa Code: ' + code + '\n\nPlease use this code in eSewa remarks when making payment.');
+  showNotification('Order placed successfully!');
+}
+
+// Show Notification
+function showNotification(msg) {
+  var n = document.createElement('div');
+  n.className = 'notification show';
+  n.textContent = msg;
+  n.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#333;color:#fff;padding:12px 20px;border-radius:8px;z-index:9999;';
+  document.body.appendChild(n);
+  setTimeout(function() { n.remove(); }, 3000);
+}
+
+// Check Login
+function checkLogin() {
+  var user = localStorage.getItem('loggedInUser');
+  var isAdmin = localStorage.getItem('isAdmin') === '1';
+  var loginBtn = document.getElementById('loginBtn');
+  var profileSection = document.getElementById('profileSection');
+  var profileUsername = document.getElementById('profileUsername');
+  var adminLink = document.getElementById('adminPanelLink');
+  
+  if (user) {
+    if (loginBtn) loginBtn.style.display = 'none';
+    if (profileSection) profileSection.style.display = 'block';
+    if (profileUsername) profileUsername.textContent = user;
+    if (adminLink) adminLink.style.display = isAdmin ? 'block' : 'none';
+  } else {
+    if (loginBtn) loginBtn.style.display = 'block';
+    if (profileSection) profileSection.style.display = 'none';
+  }
+}
+
+// Initialize on load
+updateCartBadge();
+checkLogin();
+
+// Logout functionality
+var logoutBtn = document.getElementById('logoutBtn');
+if (logoutBtn) {
+  logoutBtn.addEventListener('click', function(e) {
+    e.preventDefault();
+    localStorage.removeItem('loggedInUser');
+    localStorage.removeItem('isAdmin');
+    location.reload();
+  });
+}
+</script>
+
+</body>
+</html>
