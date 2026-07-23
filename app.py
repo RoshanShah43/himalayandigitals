@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import bcrypt
@@ -376,4 +376,3 @@ def static_files(filename):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=5000)
->>>>>>> 772a9cd5e04666fcb9cdf3f3d0271ea42c04b50e
