@@ -106,35 +106,42 @@ var GAME_DATA = {
   },
   monthly_membership: {
     title: 'Gemini',
-    image: 'https://c2c.fp3.guinfra.com/file/67d3f3c25e3caa15d42569bdD8L6TyRK03?fop=imageView/2/w/340/h/340',
+    image: 'https://images.seeklogo.com/logo-png/63/2/gemini-new-logo-png_seeklogo-638161.png',
     mainCategory: 'subscriptions', subCategory: 'AI Tools',
-    delivery: 'Instant',
+    delivery: 'less than 1 hr',
     description: 'Monthly membership pass.',
     packages: [ { id: 'mm1', label: 'Monthly Membership', value: 935 } ]
   },
   weekly_lite: {
     title: 'YouTube',
-    image: 'https://www.ygmarketplace.com/storage/app/public/product/2024-09-05-66d99466c1673.webp',
+    image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTujmAKBqKS0lnBZvbNGKettJMBvIKhMqQodEf-caASL7cYOXtovlp__2o&s=10',
     mainCategory: 'subscriptions', subCategory: 'Streaming',
-    delivery: 'Instant',
+    delivery: 'less than 1 hr',
     description: 'Weekly lite membership pass.',
     packages: [ { id: 'wl1', label: 'Weekly Lite', value: 60 } ]
   },
   levelup_pass: {
-    title: 'Level-Up Pass',
-    image: 'https://bakuzone.com/assets/uploads/category/6832da11a63d11748163089.webp',
-    mainCategory: 'subscriptions', subCategory: 'Game Pass',
+    title: 'Spotify',
+    image: 'https://cdn2.fptshop.com.vn/unsafe/1920x0/filters:format(webp):quality(75)/huy_spotify_premium_1_240564049e.jpg',
+    mainCategory: 'subscriptions', subCategory: 'Streaming',
     delivery: 'Instant',
-    description: 'Level-Up Pass for Free Fire.',
-    packages: [ { id: 'lp1', label: 'Level-Up Pass', value: 512 } ]
+    description: 'Enjoy unlimited music without interruptions with Spotify Premium. Listen ad-free, download songs for offline listening, skip tracks as much as you want, and stream in high-quality audio. Access millions of songs, podcasts, and playlists on your phone, tablet, or computer.',
+    packages: [ { id: 'lp1', label: '1 month', value:  749},
+      { id: 'lp2', label: '3 months', value:  1999}, 
+      {id : 'lp3', label: '6 months', value:  3499},
+      {id : 'lp4', label: '1 year', value:  5999}
+     ]
   },
   levelup_6: {
-    title: 'Level Up · Level 6',
-    image: 'https://topup.tusargautam.com.np/storage/products/01K8QCPCKP5HPXJPHE7TP1ZRWD.png',
-    mainCategory: 'levelup', subCategory: 'Free Fire Leveling',
-    delivery: '5-10 min',
-    description: 'Level Up Package to reach Level 6.',
-    packages: [ { id: 'lu6', label: 'Level 6 Package', value: 70 } ]
+    title: 'Canva Pro',
+    image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQmdfOJXGE30dtFCLHsALTS9wT0nz7a8wArkpUemm_eIY89792EBpNaGc7g&s=10',
+    mainCategory: 'levelup', subCategory: 'Subscriptions',
+    delivery: 'less than 1hr',
+    description: 'Unlock the full power of Canva with Canva Pro Admin Access. Create stunning designs with premium templates, AI-powered tools, and advanced collaboration features. Perfect for students, professionals, businesses, content creators, and marketers.',
+    packages: [ { id: 'lu6', label: '1 year', value: 99 }
+      ,{id: 'lu7', label: 'Admin Pannel', value: 1699 },
+      {id: 'lu8', label: 'Team Owner', value: 3799 }
+     ]
   },
   levelup_10: {
     title: 'Level Up · Level 10',

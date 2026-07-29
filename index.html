@@ -133,13 +133,17 @@
 
             <div class="shopping-right">
                 <div class="purchase-step">
-                    <div class="step-header">
+                    <div class="step-header"> 
                         <span class="step-number">1</span>
                         <h3>Enter Your Account Data</h3>
                     </div>
                     <div class="form-group">
                         <label for="accountUID">UID *</label>
-                        <input type="text" id="accountUID" placeholder="Enter your UID" required>
+                        <input type="text" id="accountUID" placeholder="Enter your UID" required (for Mobile Legends, Free Fire, and other games)">
+                    </div>
+                    <div class=""form-group">
+                        <label for="accountemail">Gmail Account *</label>
+                        <input type="email" id="accountemail" placeholder="example@gmail.com" required (for Spotify, Netflix, and other subscriptions)">
                     </div>
                     <div class="form-group" id="serverGroup" style="display:none;">
                         <label for="serverID">Server ID</label>
@@ -181,8 +185,8 @@
     <div class="container contact-grid">
         <div class="contact-box">
             <h3>Contact Info</h3>
-            <p><strong>Email:</strong> <a href="mailto:rsbazar47@gmail.com">rsbazar47@gmail.com</a></p>
-            <p><strong>Phone:</strong> <a href="tel:9813920517">Helpline: 9813920517</a></p>
+            <p><strong>Email:</strong> <a href="mailto:himalayandigitals1@gmail.com">himalayandigitals1@gmail.com</a></p>
+            <p><strong>Phone:</strong> <a href="tel:9768907285">Helpline: 9768907285</a></p>
         </div>
         <div class="contact-box">
             <h3>Quick Links</h3>
@@ -252,20 +256,29 @@
                     <label for="paymentMethod">Payment Method *</label>
                     <select id="paymentMethod" required>
                         <option value="esewa">eSewa</option>
+                        <option value ="khalti">Khalti</option>
                     </select>
                 </div>
 
                 <div class="form-group esewa-block" style="margin-top:8px;">
                     <h4>eSewa Payment</h4>
                     <img src="esewa.jpeg" alt="eSewa QR" style="max-width:140px;display:block;margin-bottom:8px;">
-                    <p style="margin:6px 0;color:var(--text-muted);font-size:14px;">Write this code in the eSewa remarks before paying</p>
+                    <p style="margin:6px 0;color:var(--text-muted);font-size:19px; color: rgb(255, 5, 5);">Please write the down code in the esewa remarks before paying</p>
                     <div style="display:flex;gap:8px;align-items:center;">
                         <div id="esewaCode" style="background:var(--bg-elevate);padding:8px 12px;border-radius:6px;font-weight:700;font-family:'Space Mono',monospace;">—</div>
                         <button type="button" id="copyEsewaCodeBtn" class="copy-btn">Copy</button>
                     </div>
+                    <div class="from-group khalti-block" style="margin-top:12px;">
+                        <h4>Khalti Payment</h4>
+                        <img src="khalti.png" alt="Khalti QR" style="max-width:140px;display:block;margin-bottom:8px;">
+                        <p style="margin:6px 0;color:var(--text-muted);font-size:19px; color: rgb(255, 5, 5);">Please write the down code in the khalti remarks before paying</p>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <div id="khaltiCode" style="background:var(--bg-elevate);padding:8px 12px;border-radius:6px;font-weight:700;font-family:'Space Mono',monospace;">—</div>
+                            <button type="button" id="copyKhaltiCodeBtn" class="copy-btn">Copy</button>
+                        </div>
                 </div>
 
-                <button type="submit" class="place-order-btn">Place Order</button>
+                <button type="submit" class="place-order-btn">Place Order</button> 
             </form>
         </div>
     </div>
