@@ -5,32 +5,172 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - RS Bazar</title>
     <style>
+    :root {
+      --bg: #120e0c;
+      --bg-elevate: #1c1512;
+      --card: #221a16;
+      --border: #382a20;
+      --text: #f5ede4;
+      --text-muted: #a8988c;
+      --accent: #ff3b2e;
+      --accent-dim: #b32b21;
+      --accent-2: #ffb020;
+      --success: #33c17a;
+      --radius: 14px;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
-    body { background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 50%, #16213e 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-    .login-container { background: #ffffff; border-radius: 16px; box-shadow: 0 20px 60px rgba(15, 52, 96, 0.4); width: 100%; max-width: 400px; padding: 40px 30px; }
-    .login-header { text-align: center; margin-bottom: 30px; }
-    .login-logo { width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #00eaff, #00d4ff); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 40px; }
-    .login-header h1 { font-size: 28px; font-weight: 900; color: #222; }
-    .login-header p { color: #666; font-size: 14px; }
-    .auth-tabs { display: flex; gap: 8px; justify-content: center; margin-bottom: 20px; }
-    .tab-btn { background: transparent; border: 1px solid #ddd; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 700; color: #333; }
-    .tab-btn.active { background: linear-gradient(90deg, #2b9be3, #1e7ab8); color: #fff; border-color: transparent; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background:
+        radial-gradient(ellipse 900px 500px at 15% -10%, rgba(255,59,46,.14), transparent 60%),
+        radial-gradient(ellipse 700px 400px at 100% 10%, rgba(255,176,32,.08), transparent 55%),
+        var(--bg);
+      color: var(--text);
+    }
+    .login-container {
+      width: 100%;
+      max-width: 420px;
+      background: linear-gradient(180deg, #1d1511, #17110e);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
+      padding: 36px 28px;
+    }
+    .login-header { text-align: center; margin-bottom: 28px; }
+    .login-logo {
+      width: 84px;
+      height: 84px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 18px;
+      font-size: 38px;
+      box-shadow: 0 8px 24px rgba(255,59,46,.35);
+    }
+    .login-header h1 {
+      font-size: 30px;
+      font-weight: 900;
+      color: var(--text);
+      letter-spacing: 0.02em;
+    }
+    .login-header p { color: var(--text-muted); font-size: 14px; margin-top: 6px; }
+    .auth-tabs { display: flex; gap: 8px; justify-content: center; margin-bottom: 22px; }
+    .tab-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      padding: 10px 16px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+    .tab-btn.active {
+      background: linear-gradient(90deg, var(--accent), var(--accent-dim));
+      color: #fff;
+      border-color: transparent;
+    }
+    .google-auth-wrap {
+      margin: 16px 0 22px;
+      text-align: center;
+    }
+    .google-btn-shell {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .google-status {
+      margin-top: 8px;
+      font-size: 12.5px;
+      color: var(--text-muted);
+    }
+    .auth-divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 18px 0 16px;
+      color: var(--text-muted);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    .auth-divider::before,
+    .auth-divider::after {
+      content: '';
+      height: 1px;
+      background: var(--border);
+      flex: 1;
+    }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
-    .form-group { margin-bottom: 20px; }
-    .form-group label { display: block; font-weight: 700; color: #333; margin-bottom: 8px; font-size: 14px; }
-    .form-group input { width: 100%; padding: 14px 16px; border: 2px solid #ddd; border-radius: 8px; font-size: 15px; background: #f9f9f9; }
-    .form-group input:focus { outline: none; border-color: #2b9be3; background: #fff; }
-    .login-btn { width: 100%; padding: 14px 20px; background: linear-gradient(90deg, #2b9be3, #1e7ab8); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 800; cursor: pointer; margin-top: 10px; }
-    .login-btn:hover { transform: translateY(-2px); }
-    .error-msg { background: #fee; color: #c33; padding: 12px; border-radius: 8px; margin-bottom: 15px; display: none; }
+    .form-group { margin-bottom: 18px; }
+    .form-group label {
+      display: block;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 15px;
+      background: #0f0b08;
+      color: var(--text);
+    }
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--accent-2);
+      box-shadow: 0 0 0 3px rgba(255,176,32,.15);
+    }
+    .login-btn {
+      width: 100%;
+      padding: 14px 20px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+      color: white;
+      border: none;
+      border-radius: 999px;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: transform .15s ease, filter .15s ease;
+    }
+    .login-btn:hover { transform: translateY(-2px); filter: brightness(1.06); }
+    .error-msg {
+      background: rgba(255,59,46,.12);
+      color: #ffb2aa;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      display: none;
+      border: 1px solid rgba(255,59,46,.35);
+    }
     .error-msg.show { display: block; }
-    .success-msg { background: #efe; color: #2a2; padding: 12px; border-radius: 8px; margin-bottom: 15px; display: none; }
+    .success-msg {
+      background: rgba(51,193,122,.12);
+      color: #9af0bf;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      display: none;
+      border: 1px solid rgba(51,193,122,.35);
+    }
     .success-msg.show { display: block; }
-    .back-link { text-align: center; margin-top: 20px; }
-    .back-link a { color: #2b9be3; text-decoration: none; font-weight: 600; }
-    .demo-info { background: #f0f8ff; border: 1px solid #b3d9ff; padding: 14px; border-radius: 8px; margin-top: 20px; font-size: 13px; text-align: center; }
-    .demo-info strong { color: #2b9be3; display: block; margin-bottom: 6px; }
+    .back-link { text-align: center; margin-top: 22px; }
+    .back-link a {
+      color: var(--accent-2);
+      text-decoration: none;
+      font-weight: 700;
+    }
+    .back-link a:hover { color: #ffd376; }
     </style>
     </head>
     <body>
@@ -49,6 +189,13 @@
             <button class="tab-btn active" onclick="showTab('login')">Login</button>
             <button class="tab-btn" onclick="showTab('signup')">Sign Up</button>
         </div>
+
+        <div class="google-auth-wrap">
+            <div class="google-btn-shell" id="googleLoginBtn"></div>
+            <div class="google-status" id="googleStatus">Google sign-in is available after a real Google OAuth client ID is configured.</div>
+        </div>
+
+        <div class="auth-divider">Or use your account</div>
 
         <!-- LOGIN TAB -->
         <div class="tab-content active" id="loginTab">
@@ -90,12 +237,12 @@
 
         
         <div class="back-link">
-            <a href="hlo.html">← Back to Home</a>
+            <a href="index.html">← Back to Home</a>
         </div>
     </div>
 
+    <script src="https://accounts.google.com/gsi/client" async defer onload="window.googleGsiLoaded = true;" onerror="window.googleGsiLoadFailed = true;"></script>
     <script>
-    // DEFAULT USERS - Stored in file (always available)
     var DEFAULT_USERS = [
         { username: 'roshanshah', email: 'roshan@example.com', password: 'killer3051Q', isAdmin: true },
         { username: 'testuser', email: 'test@example.com', password: 'test123', isAdmin: false },
@@ -141,9 +288,8 @@
         return null;
     }
 
-    // API call helper function
     async function apiCall(endpoint, options = {}) {
-    const baseURL = 'http://localhost:5000';
+        const baseURL = 'http://localhost:5000';
         const url = `${baseURL}${endpoint}`;
 
         const defaultOptions = {
@@ -154,7 +300,6 @@
             ...options
         };
 
-        // Add authorization header if user is logged in
         const token = localStorage.getItem('token');
         if (token) {
             defaultOptions.headers['Authorization'] = `Bearer ${token}`;
@@ -165,7 +310,7 @@
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.message || `HTTP error! status: ${response.status}`);
+                throw new Error(data.message || data.error || `HTTP error! status: ${response.status}`);
             }
 
             return data;
@@ -175,7 +320,69 @@
         }
     }
 
-    // Show tab
+    async function initGoogleAuth() {
+        if (window.googleGsiLoadFailed) {
+            document.getElementById('googleStatus').textContent = 'Google OAuth could not be loaded from the browser. Check your internet connection or configure Google OAuth properly.';
+            return;
+        }
+
+        if (!window.google || !window.google.accounts || !window.google.accounts.id) {
+            document.getElementById('googleStatus').textContent = 'Google OAuth is not ready yet. Please refresh the page after the Google script loads.';
+            return;
+        }
+
+        try {
+            const config = await apiCall('/api/google-config');
+            if (!config.clientId) {
+                document.getElementById('googleStatus').textContent = 'Google OAuth client ID is not configured on the server yet. Add a real Google client ID to enable Google Sign-In.';
+                return;
+            }
+
+            window.google.accounts.id.initialize({
+                client_id: config.clientId,
+                callback: async function(response) {
+                    try {
+                        const data = await apiCall('/api/google-login', {
+                            method: 'POST',
+                            body: JSON.stringify({ id_token: response.credential })
+                        });
+
+                        localStorage.setItem('loggedInUser', data.user.username);
+                        localStorage.setItem('userId', data.user.id);
+                        if (data.user.is_admin) {
+                            localStorage.setItem('isAdmin', '1');
+                        } else {
+                            localStorage.removeItem('isAdmin');
+                        }
+
+                        document.getElementById('successMsg').textContent = 'Google login successful! Redirecting...';
+                        document.getElementById('successMsg').classList.add('show');
+
+                        setTimeout(function() {
+                            if (data.user.is_admin) {
+                                window.location.href = 'admin.html';
+                            } else {
+                                window.location.href = 'index.html';
+                            }
+                        }, 800);
+                    } catch (error) {
+                        document.getElementById('errorMsg').textContent = error.message;
+                        document.getElementById('errorMsg').classList.add('show');
+                    }
+                }
+            });
+
+            document.getElementById('googleStatus').textContent = 'Google sign-in is ready.';
+            window.google.accounts.id.renderButton(document.getElementById('googleLoginBtn'), {
+                theme: 'outline',
+                size: 'large',
+                width: '100%'
+            });
+        } catch (error) {
+            document.getElementById('googleStatus').textContent = 'Google OAuth could not be initialized. Server configuration is missing or the API is unavailable.';
+        }
+    }
+
     function showTab(tab) {
         document.getElementById('loginTab').classList.remove('active');
         document.getElementById('signupTab').classList.remove('active');
@@ -192,6 +399,10 @@
         document.getElementById('errorMsg').classList.remove('show');
         document.getElementById('successMsg').classList.remove('show');
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initGoogleAuth();
+    });
 
     // LOGIN FORM
     document.getElementById('loginForm').addEventListener('submit', async function(e) {

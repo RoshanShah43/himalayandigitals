@@ -2,7 +2,10 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import bcrypt
 import os
+import random
+import string
 from datetime import datetime
+import requests
 from supabase import create_client, Client
 
 app = Flask(__name__)
@@ -11,6 +14,7 @@ CORS(app)
 # Supabase setup
 SUPABASE_URL = "https://verlqmqpysxtwzbaybni.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZlcmxxbXFweXN4dHd6YmF5Ym5pIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDA2MjgzMywiZXhwIjoyMDg5NjM4ODMzfQ.C29wWhN8txk8vD91ZFGRwBQNTFd15OxPR5QR3tx3uR4"
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def init_db():
@@ -35,6 +39,38 @@ def init_db():
             print("Default admin user created")
     except Exception as e:
         print(f"Admin user initialization error: {e}")
+
+
+def build_unique_google_username(email):
+    base = (email.split('@')[0] or 'google_user').replace('.', '_').replace(' ', '_').lower()
+    candidate = base[:24]
+    suffix = 1
+    while True:
+        try:
+            response = supabase.table('users').select('id').eq('username', candidate).execute()
+            if not response.data:
+                return candidate
+            candidate = f"{base[:20]}_{suffix}"
+            suffix += 1
+        except Exception:
+            return candidate
+
+
+def ensure_google_user(email, full_name=''):
+    existing = supabase.table('users').select('*').eq('email', email).execute()
+    if existing.data:
+        return existing.data[0]
+
+    username = build_unique_google_username(email)
+    password_hash = bcrypt.hashpw(f"google-oauth:{email}".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    new_user = supabase.table('users').insert({
+        'username': username,
+        'email': email,
+        'password_hash': password_hash,
+        'is_admin': False
+    }).execute()
+
+    return new_user.data[0] if new_user.data else None
 
 @app.route('/api/register', methods=['POST'])
 def register():
@@ -61,6 +97,61 @@ def register():
         return jsonify({'message': 'User registered successfully'}), 201
     except Exception as e:
         return jsonify({'error': 'Username or email already exists'}), 400
+
+@app.route('/api/google-config', methods=['GET'])
+def google_config():
+    return jsonify({'clientId': GOOGLE_CLIENT_ID}), 200
+
+
+@app.route('/api/google-login', methods=['POST'])
+def google_login():
+    if not GOOGLE_CLIENT_ID:
+        return jsonify({'error': 'Google login is not configured on the server'}), 503
+
+    data = request.get_json() or {}
+    id_token = data.get('id_token')
+
+    if not id_token:
+        return jsonify({'error': 'Google id_token required'}), 400
+
+    try:
+        verify_response = requests.get(
+            'https://oauth2.googleapis.com/tokeninfo',
+            params={'id_token': id_token},
+            timeout=10
+        )
+        verify_response.raise_for_status()
+        payload = verify_response.json()
+    except Exception as e:
+        return jsonify({'error': f'Google token verification failed: {str(e)}'}), 401
+
+    if payload.get('aud') != GOOGLE_CLIENT_ID:
+        return jsonify({'error': 'Google token audience mismatch'}), 401
+
+    if payload.get('iss') not in ('https://accounts.google.com', 'accounts.google.com'):
+        return jsonify({'error': 'Google token issuer mismatch'}), 401
+
+    if not payload.get('email_verified'):
+        return jsonify({'error': 'Google email is not verified'}), 401
+
+    email = (payload.get('email') or '').lower().strip()
+    if not email:
+        return jsonify({'error': 'Google account email missing'}), 400
+
+    user = ensure_google_user(email, payload.get('name', ''))
+    if not user:
+        return jsonify({'error': 'Unable to create Google user account'}), 500
+
+    return jsonify({
+        'message': 'Google login successful',
+        'user': {
+            'id': user['id'],
+            'username': user['username'],
+            'email': user['email'],
+            'is_admin': bool(user.get('is_admin', False))
+        }
+    }), 200
+
 
 @app.route('/api/login', methods=['POST'])
 def login():

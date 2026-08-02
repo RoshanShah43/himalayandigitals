@@ -106,7 +106,7 @@ var GAME_DATA = {
   },
   monthly_membership: {
     title: 'Gemini',
-    image: 'https://images.seeklogo.com/logo-png/63/2/gemini-new-logo-png_seeklogo-638161.png',
+    image: 'https://media.licdn.com/dms/image/v2/D5622AQFGJIltSHBgyw/feedshare-shrink_800/B56Zz008fgI0Ac-/0/1773634046242?e=2147483647&v=beta&t=C824GNg6ybG5WHs7brGxzFjYwPk945ShkNmjPrq6ejo',
     mainCategory: 'subscriptions', subCategory: 'AI Tools',
     delivery: 'less than 1 hr',
     description: 'Monthly membership pass.',
@@ -135,7 +135,7 @@ var GAME_DATA = {
   levelup_6: {
     title: 'Canva Pro',
     image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQmdfOJXGE30dtFCLHsALTS9wT0nz7a8wArkpUemm_eIY89792EBpNaGc7g&s=10',
-    mainCategory: 'levelup', subCategory: 'Subscriptions',
+    mainCategory: 'subscriptions', subCategory: 'Designing Tools',
     delivery: 'less than 1hr',
     description: 'Unlock the full power of Canva with Canva Pro Admin Access. Create stunning designs with premium templates, AI-powered tools, and advanced collaboration features. Perfect for students, professionals, businesses, content creators, and marketers.',
     packages: [ { id: 'lu6', label: '1 year', value: 99 }
@@ -144,12 +144,12 @@ var GAME_DATA = {
      ]
   },
   levelup_10: {
-    title: 'Level Up · Level 10',
-    image: 'https://topup.tusargautam.com.np/storage/products/01K8QCPCKP5HPXJPHE7TP1ZRWD.png',
-    mainCategory: 'levelup', subCategory: 'Free Fire Leveling',
-    delivery: '5-10 min',
-    description: 'Level Up Package to reach Level 10.',
-    packages: [ { id: 'lu10', label: 'Level 10 Package', value: 100 } ]
+    title: 'Adobe Creative Cloud',
+    image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTRaxVxLHY5lp74hvquwUi8hswV5J__bMdAKeV65wgBvA&s=10',
+    mainCategory: 'subscriptions', subCategory: 'Subscriptions',
+    delivery: 'less than 1hr',
+    description: 'Adobe creative cloud for lifetime.',
+    packages: [ { id: 'lu10', label: 'Lifetime', value: 4599 } ]
   },
   levelup_15: {
     title: 'Level Up · Level 15',
@@ -287,14 +287,21 @@ function openProductModal(gameId) {
   var game = GAME_DATA[gameId];
   if (!game) { alert('Product not found: ' + gameId); return; }
 
+  var isGameProduct = game.mainCategory === 'games';
+  var uidGroup = document.getElementById('uidGroup');
+  var gmailGroup = document.getElementById('gmailGroup');
+
   document.getElementById('gameImage').src = game.image;
   document.getElementById('gameTitle').textContent = game.title;
   document.getElementById('gameCategory').textContent = CATEGORY_LABELS[game.mainCategory] + ' · ' + game.subCategory;
   document.getElementById('gameDescription').textContent = game.description;
   document.getElementById('gameDelivery').textContent = '⚡ Delivery in ' + game.delivery;
   document.getElementById('accountUID').value = '';
+  document.getElementById('accountEmail').value = '';
   document.getElementById('quantity').value = 1;
   document.getElementById('serverGroup').style.display = game.needsServer ? 'block' : 'none';
+  if (uidGroup) uidGroup.style.display = isGameProduct ? 'block' : 'none';
+  if (gmailGroup) gmailGroup.style.display = isGameProduct ? 'none' : 'block';
 
   var pkgGrid = document.getElementById('packagesGrid');
   pkgGrid.innerHTML = '';
@@ -342,11 +349,21 @@ function handleAddToCart() {
   var modal = document.getElementById('gameShoppingModal');
   var gameId = modal.getAttribute('data-game-id');
   var game = GAME_DATA[gameId];
-  var uid = document.getElementById('accountUID').value.trim();
+  var isGameProduct = game.mainCategory === 'games';
+  var accountId = '';
   var qty = parseInt(document.getElementById('quantity').value) || 1;
   var selected = document.querySelector('#packagesGrid .package-option.selected');
 
-  if (!uid) { alert('Please enter your UID'); return; }
+  if (isGameProduct) {
+    accountId = document.getElementById('accountUID').value.trim();
+    if (!accountId) { alert('Please enter your UID'); return; }
+  } else {
+    accountId = document.getElementById('accountEmail').value.trim().toLowerCase();
+    var gmailPattern = /^[^\s@]+@gmail\.com$/i;
+    if (!accountId) { alert('Please enter your Gmail account'); return; }
+    if (!gmailPattern.test(accountId)) { alert('Please enter a valid Gmail account'); return; }
+  }
+
   if (!selected) { alert('Please select a package'); return; }
 
   cart.push({
@@ -357,7 +374,8 @@ function handleAddToCart() {
     packageLabel: selected.getAttribute('data-label'),
     price: parseInt(selected.getAttribute('data-price')),
     quantity: qty,
-    accountUID: uid
+    accountUID: accountId,
+    accountType: isGameProduct ? 'uid' : 'gmail'
   });
 
   localStorage.setItem('cart', JSON.stringify(cart));
@@ -409,6 +427,25 @@ function removeFromCart(itemId) {
   renderCartItems();
 }
 
+function generateOrderCode() {
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789';
+  var code = '';
+  for (var i = 0; i < 5; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+  return code;
+}
+
+function updatePaymentPanels() {
+  var paymentMethod = document.getElementById('paymentMethod');
+  var selectedMethod = paymentMethod ? paymentMethod.value : 'esewa';
+  var esewaBlock = document.getElementById('esewaBlock');
+  var khaltiBlock = document.getElementById('khaltiBlock');
+  var bankBlock = document.getElementById('bankBlock');
+
+  if (esewaBlock) esewaBlock.style.display = selectedMethod === 'esewa' ? 'block' : 'none';
+  if (khaltiBlock) khaltiBlock.style.display = selectedMethod === 'khalti' ? 'block' : 'none';
+  if (bankBlock) bankBlock.style.display = selectedMethod === 'bank' ? 'block' : 'none';
+}
+
 function proceedToCheckout() {
   if (cart.length === 0) { alert('Your cart is empty!'); return; }
   document.getElementById('cartDrawer').classList.remove('open');
@@ -426,14 +463,30 @@ function proceedToCheckout() {
   if (summary) summary.innerHTML = html;
   if (total) total.textContent = 'Rs' + sum;
 
-  var code = '';
-  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789';
-  for (var i = 0; i < 5; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+  var esewaCode = generateOrderCode();
+  var khaltiCode = generateOrderCode();
+  var bankCode = generateOrderCode();
 
-  var codeEl = document.getElementById('esewaCode');
-  if (codeEl) {
-    codeEl.textContent = code;
-    codeEl.setAttribute('data-code', code);
+  var esewaCodeEl = document.getElementById('esewaCode');
+  if (esewaCodeEl) {
+    esewaCodeEl.textContent = esewaCode;
+    esewaCodeEl.setAttribute('data-code', esewaCode);
+  }
+
+  var khaltiCodeEl = document.getElementById('khaltiCode');
+  if (khaltiCodeEl) {
+    khaltiCodeEl.textContent = khaltiCode;
+    khaltiCodeEl.setAttribute('data-code', khaltiCode);
+  }
+
+  var bankCodeEl = document.getElementById('bankCode');
+  if (bankCodeEl) {
+    bankCodeEl.textContent = bankCode;
+    bankCodeEl.setAttribute('data-code', bankCode);
+  }
+
+  if (document.getElementById('paymentMethod')) {
+    document.getElementById('paymentMethod').dispatchEvent(new Event('change'));
   }
 
   document.getElementById('checkoutModal').classList.add('open');
@@ -451,7 +504,16 @@ function placeOrder(event) {
 
   if (cart.length === 0) { alert('Your cart is empty!'); return; }
 
-  var code = document.getElementById('esewaCode').getAttribute('data-code') || 'N/A';
+  var paymentMethod = document.getElementById('paymentMethod').value;
+  var paymentCode = 'N/A';
+
+  if (paymentMethod === 'esewa') {
+    paymentCode = document.getElementById('esewaCode').getAttribute('data-code') || 'N/A';
+  } else if (paymentMethod === 'khalti') {
+    paymentCode = document.getElementById('khaltiCode').getAttribute('data-code') || 'N/A';
+  } else {
+    paymentCode = document.getElementById('bankCode').getAttribute('data-code') || 'N/A';
+  }
 
   var orders = [];
   try { orders = JSON.parse(localStorage.getItem('gameCart')) || []; } catch (e) { orders = []; }
@@ -466,7 +528,9 @@ function placeOrder(event) {
       price: item.price,
       total: item.price * item.quantity,
       username: user,
-      esewaCode: code,
+      paymentMethod: paymentMethod,
+      paymentCode: paymentCode,
+      esewaCode: paymentMethod === 'esewa' ? paymentCode : '',
       timestamp: new Date().toISOString(),
       status: 'Pending'
     });
@@ -480,7 +544,7 @@ function placeOrder(event) {
 
   document.getElementById('checkoutModal').classList.remove('open');
 
-  alert('Order placed successfully!\n\neSewa Code: ' + code + '\n\nPlease use this code in eSewa remarks when making payment.');
+  alert('Order placed successfully!\n\nPayment Method: ' + paymentMethod.toUpperCase() + '\n\nCode: ' + paymentCode + '\n\nPlease use this code in the selected payment remarks before making payment.');
   showNotification('Order placed successfully!');
 }
 
@@ -521,6 +585,11 @@ document.addEventListener('DOMContentLoaded', function () {
   updateCartBadge();
   checkLogin();
 
+  var paymentMethod = document.getElementById('paymentMethod');
+  if (paymentMethod) {
+    paymentMethod.addEventListener('change', updatePaymentPanels);
+  }
+
   var checkoutForm = document.getElementById('checkoutForm');
   if (checkoutForm) checkoutForm.addEventListener('submit', placeOrder);
 
@@ -529,9 +598,29 @@ document.addEventListener('DOMContentLoaded', function () {
     copyBtn.addEventListener('click', function () {
       var code = document.getElementById('esewaCode').textContent;
       if (navigator.clipboard) navigator.clipboard.writeText(code);
-      showNotification('Code copied!');
+      showNotification('eSewa code copied!');
     });
   }
+
+  var khaltiCopyBtn = document.getElementById('copyKhaltiCodeBtn');
+  if (khaltiCopyBtn) {
+    khaltiCopyBtn.addEventListener('click', function () {
+      var code = document.getElementById('khaltiCode').textContent;
+      if (navigator.clipboard) navigator.clipboard.writeText(code);
+      showNotification('Khalti code copied!');
+    });
+  }
+
+  var bankCopyBtn = document.getElementById('copyBankCodeBtn');
+  if (bankCopyBtn) {
+    bankCopyBtn.addEventListener('click', function () {
+      var code = document.getElementById('bankCode').textContent;
+      if (navigator.clipboard) navigator.clipboard.writeText(code);
+      showNotification('Bank code copied!');
+    });
+  }
+
+  updatePaymentPanels();
 
   var logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {

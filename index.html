@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
 <meta name="description" content="Top Up RS Bazar - Instant game top-ups and digital products with best rates">
 <meta name="theme-color" content="#ff3b2e">
-<title>Top Up RS-Bazar</title>
+<title>Himalayan Digitals</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -137,13 +137,13 @@
                         <span class="step-number">1</span>
                         <h3>Enter Your Account Data</h3>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" id="uidGroup">
                         <label for="accountUID">UID *</label>
-                        <input type="text" id="accountUID" placeholder="Enter your UID" required (for Mobile Legends, Free Fire, and other games)">
+                        <input type="text" id="accountUID" placeholder="Enter your UID" required>
                     </div>
-                    <div class=""form-group">
-                        <label for="accountemail">Gmail Account *</label>
-                        <input type="email" id="accountemail" placeholder="example@gmail.com" required (for Spotify, Netflix, and other subscriptions)">
+                    <div class="form-group" id="gmailGroup" style="display:none;">
+                        <label for="accountEmail">Gmail Account *</label>
+                        <input type="email" id="accountEmail" placeholder="example@gmail.com" required>
                     </div>
                     <div class="form-group" id="serverGroup" style="display:none;">
                         <label for="serverID">Server ID</label>
@@ -256,26 +256,39 @@
                     <label for="paymentMethod">Payment Method *</label>
                     <select id="paymentMethod" required>
                         <option value="esewa">eSewa</option>
-                        <option value ="khalti">Khalti</option>
+                        <option value="khalti">Khalti</option>
+                        <option value="bank">Bank Transfer</option>
                     </select>
                 </div>
 
-                <div class="form-group esewa-block" style="margin-top:8px;">
+                <div id="esewaBlock" class="form-group payment-block" style="margin-top:8px;">
                     <h4>eSewa Payment</h4>
                     <img src="esewa.jpeg" alt="eSewa QR" style="max-width:140px;display:block;margin-bottom:8px;">
-                    <p style="margin:6px 0;color:var(--text-muted);font-size:19px; color: rgb(255, 5, 5);">Please write the down code in the esewa remarks before paying</p>
+                    <p style="margin:6px 0;color:var(--text-muted);font-size:19px; color: rgb(255, 5, 5);">Please write the code in the eSewa remarks before paying.</p>
                     <div style="display:flex;gap:8px;align-items:center;">
                         <div id="esewaCode" style="background:var(--bg-elevate);padding:8px 12px;border-radius:6px;font-weight:700;font-family:'Space Mono',monospace;">—</div>
                         <button type="button" id="copyEsewaCodeBtn" class="copy-btn">Copy</button>
                     </div>
-                    <div class="from-group khalti-block" style="margin-top:12px;">
-                        <h4>Khalti Payment</h4>
-                        <img src="khalti.png" alt="Khalti QR" style="max-width:140px;display:block;margin-bottom:8px;">
-                        <p style="margin:6px 0;color:var(--text-muted);font-size:19px; color: rgb(255, 5, 5);">Please write the down code in the khalti remarks before paying</p>
-                        <div style="display:flex;gap:8px;align-items:center;">
-                            <div id="khaltiCode" style="background:var(--bg-elevate);padding:8px 12px;border-radius:6px;font-weight:700;font-family:'Space Mono',monospace;">—</div>
-                            <button type="button" id="copyKhaltiCodeBtn" class="copy-btn">Copy</button>
-                        </div>
+                </div>
+
+                <div id="khaltiBlock" class="form-group payment-block" style="display:none; margin-top:12px;">
+                    <h4>Khalti Payment</h4>
+                    <img src="khalti.jpeg" alt="Khalti QR" style="max-width:140px;display:block;margin-bottom:8px;">
+                    <p style="margin:6px 0;color:var(--text-muted);font-size:19px; color: rgb(255, 5, 5);">Please write the code in the Khalti remarks before paying.</p>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <div id="khaltiCode" style="background:var(--bg-elevate);padding:8px 12px;border-radius:6px;font-weight:700;font-family:'Space Mono',monospace;">—</div>
+                        <button type="button" id="copyKhaltiCodeBtn" class="copy-btn">Copy</button>
+                    </div>
+                </div>
+
+                <div id="bankBlock" class="form-group payment-block" style="display:none; margin-top:12px;">
+                    <h4>Bank Transfer</h4>
+                    <img src="bank.jpeg" alt="Bank QR" style="max-width:140px;display:block;margin-bottom:8px;">
+                    <p style="margin:6px 0;color:var(--text-muted);font-size:19px; color: rgb(255, 5, 5);">Please write the order code in the bank transfer remarks before paying.</p>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <div id="bankCode" style="background:var(--bg-elevate);padding:8px 12px;border-radius:6px;font-weight:700;font-family:'Space Mono',monospace;">—</div>
+                        <button type="button" id="copyBankCodeBtn" class="copy-btn">Copy</button>
+                    </div>
                 </div>
 
                 <button type="submit" class="place-order-btn">Place Order</button> 
