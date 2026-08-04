@@ -11,18 +11,31 @@ from supabase import create_client, Client
 app = Flask(__name__)
 CORS(app)
 
-# Supabase setup
-SUPABASE_URL = "https://verlqmqpysxtwzbaybni.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZlcmxxbXFweXN4dHd6YmF5Ym5pIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDA2MjgzMywiZXhwIjoyMDg5NjM4ODMzfQ.C29wWhN8txk8vD91ZFGRwBQNTFd15OxPR5QR3tx3uR4"
+# Environment-based configuration for serverless deployments
+SUPABASE_URL = os.getenv('SUPABASE_URL', '')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY', '')
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+supabase: Client | None = None
+if SUPABASE_URL and SUPABASE_KEY:
+    try:
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception as e:
+        print(f"Supabase client initialization failed: {e}")
+        supabase = None
+else:
+    print("Supabase environment variables are not configured")
 
 def init_db():
     """Initialize Supabase tables if they don't exist"""
+    if not supabase:
+        print("Supabase is not configured; skipping DB initialization")
+        return
+
     try:
         # Create users table
         supabase.table('users').select('*').limit(1).execute()
-    except:
+    except Exception:
         print("Users table will be created via Supabase dashboard")
     
     # Insert default admin user if not exists
@@ -42,6 +55,9 @@ def init_db():
 
 
 def build_unique_google_username(email):
+    if not supabase:
+        return (email.split('@')[0] or 'google_user').replace('.', '_').replace(' ', '_').lower()[:24]
+
     base = (email.split('@')[0] or 'google_user').replace('.', '_').replace(' ', '_').lower()
     candidate = base[:24]
     suffix = 1
@@ -57,6 +73,9 @@ def build_unique_google_username(email):
 
 
 def ensure_google_user(email, full_name=''):
+    if not supabase:
+        return None
+
     existing = supabase.table('users').select('*').eq('email', email).execute()
     if existing.data:
         return existing.data[0]
@@ -74,6 +93,9 @@ def ensure_google_user(email, full_name=''):
 
 @app.route('/api/register', methods=['POST'])
 def register():
+    if not supabase:
+        return jsonify({'error': 'Supabase is not configured'}), 503
+
     data = request.get_json()
     username = data.get('username')
     email = data.get('email')
@@ -155,6 +177,9 @@ def google_login():
 
 @app.route('/api/login', methods=['POST'])
 def login():
+    if not supabase:
+        return jsonify({'error': 'Supabase is not configured'}), 503
+
     data = request.get_json()
     identifier = data.get('identifier')  # username or email
     password = data.get('password')
@@ -186,6 +211,9 @@ def login():
 
 @app.route('/api/orders', methods=['GET'])
 def get_orders():
+    if not supabase:
+        return jsonify({'error': 'Supabase is not configured'}), 503
+
     user_id = request.args.get('user_id')
     if not user_id:
         return jsonify({'error': 'User ID required'}), 400
@@ -198,6 +226,9 @@ def get_orders():
 
 @app.route('/api/orders', methods=['POST'])
 def create_order():
+    if not supabase:
+        return jsonify({'error': 'Supabase is not configured'}), 503
+
     data = request.get_json()
     user_id = data.get('user_id')
     orders_data = data.get('orders', [])
@@ -226,6 +257,9 @@ def create_order():
 
 @app.route('/api/orders/<int:order_id>/status', methods=['PUT'])
 def update_order_status(order_id):
+    if not supabase:
+        return jsonify({'error': 'Supabase is not configured'}), 503
+
     data = request.get_json()
     status = data.get('status')
 
@@ -240,6 +274,9 @@ def update_order_status(order_id):
 
 @app.route('/api/admin/orders', methods=['GET'])
 def get_all_orders():
+    if not supabase:
+        return jsonify({'error': 'Supabase is not configured'}), 503
+
     try:
         orders_response = supabase.table('orders').select('*, users(username, email)').order('timestamp', desc=True).execute()
         return jsonify(orders_response.data), 200
@@ -248,6 +285,9 @@ def get_all_orders():
 
 @app.route('/api/admin/users', methods=['GET'])
 def get_all_users():
+    if not supabase:
+        return jsonify({'error': 'Supabase is not configured'}), 503
+
     try:
         users_response = supabase.table('users').select('id, username, email, is_admin, created_at').execute()
         return jsonify(users_response.data), 200
