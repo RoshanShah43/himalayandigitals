@@ -49,14 +49,18 @@ document.addEventListener('DOMContentLoaded', async function () {
 
       var details = document.createElement('div');
       details.className = 'order-details';
-      [
+      var detailEntries = [
         ['Order date', new Date(order.created_at).toLocaleString()],
         ['Account / UID', order.uid || '—'],
         ['Server ID', order.server_id || '—'],
         ['Quantity', String(order.quantity)],
         ['Total', 'Rs' + order.total],
         ['Payment', order.payment_method.toUpperCase()]
-      ].forEach(function (entry) {
+      ];
+      if (order.coupon_code) {
+        detailEntries.splice(4, 0, ['Coupon', order.coupon_code + ' · -Rs' + order.discount_amount]);
+      }
+      detailEntries.forEach(function (entry) {
         var item = document.createElement('div');
         item.className = 'detail-item';
         var label = document.createElement('div');

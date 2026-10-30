@@ -234,6 +234,10 @@
             <div class="checkout-summary">
                 <h3>Order Summary</h3>
                 <div id="checkoutCartSummary" class="checkout-items"></div>
+                <div id="checkoutDiscountRow" class="checkout-item coupon-discount-row" hidden>
+                    <span id="checkoutDiscountLabel">Coupon discount</span>
+                    <span id="checkoutDiscount">-Rs0</span>
+                </div>
                 <div class="checkout-total">
                     <strong>Total Amount:</strong>
                     <strong id="checkoutTotal">Rs0</strong>
@@ -242,6 +246,14 @@
 
             <form id="checkoutForm" class="checkout-form">
                 <h3>Payment Information</h3>
+                <div class="coupon-apply-row">
+                    <label for="checkoutCouponCode">Discount coupon</label>
+                    <div class="coupon-input-row">
+                        <input type="text" id="checkoutCouponCode" maxlength="32" autocomplete="off" placeholder="Enter coupon code">
+                        <button type="button" id="applyCouponBtn" class="copy-btn">Apply</button>
+                    </div>
+                    <div id="couponMessage" class="coupon-message" aria-live="polite"></div>
+                </div>
 
                 <div class="form-group">
                     <label for="paymentMethod">Payment Method *</label>

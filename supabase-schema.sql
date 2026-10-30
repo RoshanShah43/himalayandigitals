@@ -62,8 +62,71 @@ create table if not exists public.orders (
   created_at timestamptz not null default now()
 );
 
+alter table public.orders
+  add column if not exists coupon_code text not null default '',
+  add column if not exists discount_amount numeric(12,2) not null default 0 check (discount_amount >= 0),
+  add column if not exists checkout_id uuid;
+
+create table if not exists public.coupons (
+  id text primary key,
+  code text not null unique check (code = upper(btrim(code))),
+  percent_off numeric(5,2) not null check (percent_off > 0 and percent_off <= 100),
+  starts_at timestamptz not null,
+  expires_at timestamptz not null,
+  max_uses integer not null check (max_uses > 0),
+  usage_count integer not null default 0 check (usage_count >= 0),
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (expires_at > starts_at)
+);
+
+create table if not exists public.coupon_redemptions (
+  coupon_id text not null references public.coupons(id) on delete restrict,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  checkout_id uuid not null,
+  transaction_id bigint not null,
+  created_at timestamptz not null default now(),
+  primary key (coupon_id, user_id)
+);
+
+alter table public.coupon_redemptions
+  add column if not exists transaction_id bigint;
+update public.coupon_redemptions set transaction_id = 0 where transaction_id is null;
+alter table public.coupon_redemptions alter column transaction_id set not null;
+
+create or replace function public.protect_coupon_usage_count()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if current_user in ('anon', 'authenticated') then
+    if tg_op = 'INSERT' and new.usage_count <> 0 then
+      raise exception 'Coupon usage count is managed by the database';
+    end if;
+    if tg_op = 'UPDATE' and new.usage_count <> old.usage_count then
+      raise exception 'Coupon usage count is managed by the database';
+    end if;
+  end if;
+
+  if tg_op = 'UPDATE' and new.max_uses < old.usage_count then
+    raise exception 'Maximum uses cannot be lower than the current usage count';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists protect_coupon_usage_count_before_write on public.coupons;
+create trigger protect_coupon_usage_count_before_write
+  before insert or update on public.coupons
+  for each row execute procedure public.protect_coupon_usage_count();
+
 create index if not exists products_category_idx on public.products(category_id, subcategory_id);
 create index if not exists orders_user_created_idx on public.orders(user_id, created_at desc);
+create index if not exists orders_coupon_checkout_idx on public.orders(coupon_code, checkout_id);
+create unique index if not exists coupon_redemptions_checkout_user_idx
+  on public.coupon_redemptions(user_id, checkout_id);
 
 create or replace function public.validate_order_item()
 returns trigger
@@ -73,7 +136,10 @@ set search_path = public
 as $$
 declare
   product public.products%rowtype;
+  coupon public.coupons%rowtype;
+  redemption public.coupon_redemptions%rowtype;
   package_price numeric;
+  expected_discount numeric;
   selected_package jsonb;
 begin
   select * into product
@@ -106,12 +172,103 @@ begin
     raise exception 'Selected package or price is invalid';
   end if;
 
+  new.coupon_code := upper(btrim(coalesce(new.coupon_code, '')));
+  if new.coupon_code <> '' then
+    if new.checkout_id is null then
+      raise exception 'A checkout ID is required when using a coupon';
+    end if;
+
+    select * into coupon
+    from public.coupons
+    where code = new.coupon_code
+    for update;
+
+    if not found or not coupon.is_active
+      or now() < coupon.starts_at or now() >= coupon.expires_at then
+      raise exception 'This coupon is not currently valid';
+    end if;
+
+    select * into redemption
+    from public.coupon_redemptions
+    where coupon_id = coupon.id and user_id = new.user_id
+    for update;
+
+    if found then
+      if redemption.checkout_id <> new.checkout_id or redemption.transaction_id <> txid_current() then
+        raise exception 'This coupon has already been used by your account';
+      end if;
+    else
+      if coupon.usage_count >= coupon.max_uses then
+        raise exception 'This coupon has reached its redemption limit';
+      end if;
+      if exists (
+        select 1 from public.coupon_redemptions
+        where user_id = new.user_id and checkout_id = new.checkout_id
+      ) then
+        raise exception 'Only one coupon can be applied per checkout';
+      end if;
+      insert into public.coupon_redemptions (coupon_id, user_id, checkout_id, transaction_id)
+      values (coupon.id, new.user_id, new.checkout_id, txid_current());
+      update public.coupons set usage_count = usage_count + 1 where id = coupon.id;
+    end if;
+
+    expected_discount := round(package_price * new.quantity * coupon.percent_off / 100, 2);
+    if round(coalesce(new.discount_amount, 0), 2) <> expected_discount then
+      raise exception 'Coupon discount changed; apply the coupon again';
+    end if;
+    new.discount_amount := expected_discount;
+  else
+    if round(coalesce(new.discount_amount, 0), 2) <> 0 then
+      raise exception 'A discount requires a valid coupon';
+    end if;
+    new.discount_amount := 0;
+  end if;
+
   new.game_title := product.name;
-  new.total := round(package_price * new.quantity, 2);
+  new.total := round(package_price * new.quantity - new.discount_amount, 2);
   update public.products set stock = stock - new.quantity where id = product.id;
   return new;
 end;
 $$;
+
+create or replace function public.check_coupon(p_code text)
+returns numeric
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  coupon public.coupons%rowtype;
+begin
+  if auth.uid() is null then
+    raise exception 'Sign in to use a coupon';
+  end if;
+
+  select * into coupon
+  from public.coupons
+  where code = upper(btrim(coalesce(p_code, '')))
+    and is_active
+  limit 1;
+
+  if not found or now() < coupon.starts_at or now() >= coupon.expires_at then
+    raise exception 'This coupon is not currently valid';
+  end if;
+  if coupon.usage_count >= coupon.max_uses then
+    raise exception 'This coupon has reached its redemption limit';
+  end if;
+  if exists (
+    select 1 from public.coupon_redemptions
+    where coupon_id = coupon.id and user_id = auth.uid()
+  ) then
+    raise exception 'This coupon has already been used by your account';
+  end if;
+
+  return coupon.percent_off;
+end;
+$$;
+
+revoke all on function public.check_coupon(text) from public, anon;
+grant execute on function public.check_coupon(text) to authenticated;
 
 drop trigger if exists validate_order_item_before_insert on public.orders;
 create trigger validate_order_item_before_insert
@@ -200,6 +357,8 @@ alter table public.profiles enable row level security;
 alter table public.categories enable row level security;
 alter table public.products enable row level security;
 alter table public.orders enable row level security;
+alter table public.coupons enable row level security;
+alter table public.coupon_redemptions enable row level security;
 
 drop policy if exists "Users read own profile" on public.profiles;
 create policy "Users read own profile" on public.profiles for select
@@ -234,6 +393,22 @@ drop policy if exists "Admins delete products" on public.products;
 create policy "Admins delete products" on public.products for delete
   using (public.current_user_is_admin());
 
+drop policy if exists "Customers read available coupons" on public.coupons;
+create policy "Customers read available coupons" on public.coupons for select
+  using (
+    (is_active and starts_at <= now() and expires_at > now() and usage_count < max_uses)
+    or public.current_user_is_admin()
+  );
+drop policy if exists "Admins insert coupons" on public.coupons;
+create policy "Admins insert coupons" on public.coupons for insert
+  with check (public.current_user_is_admin());
+drop policy if exists "Admins update coupons" on public.coupons;
+create policy "Admins update coupons" on public.coupons for update
+  using (public.current_user_is_admin()) with check (public.current_user_is_admin());
+drop policy if exists "Admins delete coupons" on public.coupons;
+create policy "Admins delete coupons" on public.coupons for delete
+  using (public.current_user_is_admin());
+
 drop policy if exists "Customers read own orders" on public.orders;
 create policy "Customers read own orders" on public.orders for select
   using (user_id = auth.uid() or public.current_user_is_admin());
@@ -249,5 +424,7 @@ create policy "Admins delete orders" on public.orders for delete
 
 grant select on public.categories, public.products to anon, authenticated;
 grant insert, update, delete on public.categories, public.products to authenticated;
+grant select on public.coupons to authenticated;
+grant insert, update, delete on public.coupons to authenticated;
 grant select, update on public.profiles to authenticated;
 grant select, insert, update, delete on public.orders to authenticated;

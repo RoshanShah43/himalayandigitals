@@ -232,12 +232,19 @@ input,select,textarea{font-family:inherit;}
 }
 .modal-content h3{margin-bottom:18px;font-size:19px;}
 .modal-wide{max-width:680px;}
+.package-editor-row{display:grid;grid-template-columns:minmax(0,2fr) minmax(120px,1fr) auto;gap:10px;align-items:center;margin-bottom:10px;}
+.package-editor-row input{width:100%;min-width:0;background:var(--bg-elevate);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:var(--radius-sm);font-size:14px;}
+.package-editor-row input:focus{outline:2px solid var(--accent-2);border-color:var(--accent-2);}
+.package-editor-row input.invalid{border-color:var(--danger);}
+.package-remove-btn{background:var(--bg-elevate);border:1px solid var(--border);color:var(--text-muted);padding:8px 12px;border-radius:var(--radius-sm);cursor:pointer;}
+.package-remove-btn:hover{border-color:var(--danger);color:var(--danger);}
+.package-add-btn{margin-top:8px;}
 .form-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;}
 
 .field-error{color:var(--danger);font-size:11.5px;font-weight:600;min-height:14px;display:block;}
 .form-group input.invalid,.form-group select.invalid{border-color:var(--danger);}
 
-@media (max-width:640px){.form-row{grid-template-columns:1fr;}}
+@media (max-width:640px){.form-row{grid-template-columns:1fr;}.package-editor-row{grid-template-columns:1fr auto;}.package-editor-row input:first-child{grid-column:1 / -1;}}
 
 </style>
 </head>
@@ -257,6 +264,7 @@ input,select,textarea{font-family:inherit;}
             <button class="nav-btn" data-tab="categories">Categories</button>
             <button class="nav-btn" data-tab="subcategories">Sub Categories</button>
             <button class="nav-btn" data-tab="products">Products</button>
+            <button class="nav-btn" data-tab="coupons">Coupons</button>
             <button class="nav-btn" data-tab="orders">Orders</button>
             <button class="nav-btn" data-tab="settings">Settings</button>
             <button class="nav-btn" data-tab="users">Users</button>
@@ -363,6 +371,23 @@ input,select,textarea{font-family:inherit;}
                 </table>
             </div>
             <div class="pagination" id="productsPagination"></div>
+        </div>
+
+        <!-- Coupons -->
+        <div id="couponsTab" class="tab-content hidden">
+            <section class="section-header">
+                <h2>Discount Coupons</h2>
+                <button id="addCouponBtn" class="btn-primary">+ Add Coupon</button>
+            </section>
+            <p class="row-slug">Percentage coupons apply to the full cart. Each customer can redeem a coupon once; the usage limit counts distinct customers.</p>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead><tr>
+                        <th>Code</th><th>Discount</th><th>Valid from</th><th>Expires</th><th>Uses</th><th>Status</th><th>Actions</th>
+                    </tr></thead>
+                    <tbody id="couponsTableBody"></tbody>
+                </table>
+            </div>
         </div>
 
         <!-- Orders -->
@@ -533,8 +558,8 @@ input,select,textarea{font-family:inherit;}
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Price *</label>
-                        <input type="number" id="productPrice" min="0" step="0.01" required>
+                        <label>Base price (used if no options are listed)</label>
+                        <input type="number" id="productPrice" min="0" step="0.01">
                         <span class="field-error" id="productPriceError"></span>
                     </div>
                     <div class="form-group">
@@ -584,9 +609,10 @@ input,select,textarea{font-family:inherit;}
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Packages (JSON)</label>
-                    <textarea id="productPackages" rows="4" placeholder='[{"id":"pkg1","label":"100 Diamonds","value":150}]'></textarea>
-                    <span class="row-slug">Each package needs an id, label, and value. Leave blank to use the product price.</span>
+                    <label>Purchase options</label>
+                    <div id="productOptions"></div>
+                    <button type="button" id="addProductOptionBtn" class="btn-secondary package-add-btn">+ Add option</button>
+                    <span class="row-slug">Add options such as “1 Month — Rs 100” or “30 Diamonds — Rs 45”. Option prices are charged at checkout.</span>
                 </div>
 
                 <div class="form-row">
@@ -611,6 +637,50 @@ input,select,textarea{font-family:inherit;}
         </div>
     </div>
 
+    <div id="couponFormContainer" class="form-container hidden">
+        <div class="modal-overlay" onclick="hideCouponForm()"></div>
+        <div class="modal-content modal-wide">
+            <h3 id="couponFormTitle">Add Discount Coupon</h3>
+            <form id="couponForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="couponCode">Coupon code *</label>
+                        <input type="text" id="couponCode" required maxlength="32" placeholder="e.g. WELCOME10">
+                    </div>
+                    <div class="form-group">
+                        <label for="couponPercent">Percentage off *</label>
+                        <input type="number" id="couponPercent" required min="0.01" max="100" step="0.01" placeholder="10">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="couponStartsAt">Starts *</label>
+                        <input type="datetime-local" id="couponStartsAt" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="couponExpiresAt">Expires *</label>
+                        <input type="datetime-local" id="couponExpiresAt" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="couponMaxUses">Maximum customers *</label>
+                        <input type="number" id="couponMaxUses" required min="1" step="1" placeholder="e.g. 50">
+                        <span id="couponUsageHint" class="row-slug"></span>
+                    </div>
+                    <div class="form-group">
+                        <label>Coupon status</label>
+                        <div class="toggle"><input type="checkbox" id="couponActive" checked><label for="couponActive">Allow customers to use this coupon</label></div>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" onclick="hideCouponForm()" class="btn-secondary">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Coupon</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
     <script src="supabase-client.js"></script>
@@ -622,6 +692,7 @@ input,select,textarea{font-family:inherit;}
 var LS = {
   categories: 'rsCategories',
   products: 'rsProducts',
+  coupons: 'rsCoupons',
   orders: 'gameCart',
   settings: 'siteSettings',
   users: 'users'
@@ -662,7 +733,24 @@ function databaseOrder(order) {
     total: Number(order.total) || 0,
     payment_method: order.payment_method || order.paymentMethod,
     payment_code: order.payment_code || order.paymentCode || '',
+    coupon_code: order.coupon_code || order.couponCode || '',
+    discount_amount: Number(order.discount_amount != null ? order.discount_amount : order.discountAmount) || 0,
+    checkout_id: order.checkout_id || order.checkoutId || null,
     status: order.status || 'Pending'
+  };
+}
+
+function databaseCoupon(coupon) {
+  return {
+    id: coupon.id,
+    code: coupon.code,
+    percent_off: coupon.percent_off,
+    starts_at: coupon.starts_at,
+    expires_at: coupon.expires_at,
+    max_uses: coupon.max_uses,
+    is_active: coupon.is_active,
+    created_at: coupon.created_at,
+    updated_at: coupon.updated_at
   };
 }
 
@@ -671,8 +759,10 @@ function persistCollection(key, table, rows, oldRows) {
   var operation = previous.then(async function () {
     setCloudStatus('Saving changes to Supabase…', false);
     var client = window.getSupabaseClient();
-    var records = table === 'orders' ? rows.map(databaseOrder) : rows;
-    var oldRecords = table === 'orders' ? oldRows.map(databaseOrder) : oldRows;
+    var records = table === 'orders' ? rows.map(databaseOrder) :
+      (table === 'coupons' ? rows.map(databaseCoupon) : rows);
+    var oldRecords = table === 'orders' ? oldRows.map(databaseOrder) :
+      (table === 'coupons' ? oldRows.map(databaseCoupon) : oldRows);
     var oldById = {};
     oldRecords.forEach(function (row) { oldById[row.id] = row; });
     var changed = records.filter(function (row) {
@@ -680,7 +770,7 @@ function persistCollection(key, table, rows, oldRows) {
         return JSON.stringify(row[field]) !== JSON.stringify(oldById[row.id][field]);
       });
     });
-    if (table === 'products' || table === 'orders') {
+    if (table === 'products' || table === 'orders' || table === 'coupons') {
       for (var i = 0; i < changed.length; i++) {
         var record = changed[i];
         var previousRecord = oldById[record.id];
@@ -688,7 +778,8 @@ function persistCollection(key, table, rows, oldRows) {
         if (previousRecord) {
           var patch = {};
           Object.keys(record).forEach(function (field) {
-            if (field !== 'id' && JSON.stringify(record[field]) !== JSON.stringify(previousRecord[field])) {
+            if (field !== 'id' && !(table === 'coupons' && field === 'created_at') &&
+              JSON.stringify(record[field]) !== JSON.stringify(previousRecord[field])) {
               patch[field] = record[field];
             }
           });
@@ -724,6 +815,7 @@ function saveJSON(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
   if (key === LS.categories) return persistCollection(key, 'categories', value, previous);
   if (key === LS.products) return persistCollection(key, 'products', value, previous);
+  if (key === LS.coupons) return persistCollection(key, 'coupons', value, previous);
   if (key === LS.orders) return persistCollection(key, 'orders', value, previous);
   return Promise.resolve();
 }
@@ -748,6 +840,7 @@ function ensureSeed() {
   }
   if (localStorage.getItem(LS.categories) === null) localStorage.setItem(LS.categories, '[]');
   if (localStorage.getItem(LS.products) === null) localStorage.setItem(LS.products, '[]');
+  if (localStorage.getItem(LS.coupons) === null) localStorage.setItem(LS.coupons, '[]');
   if (localStorage.getItem(LS.orders) === null) localStorage.setItem(LS.orders, '[]');
 }
 
@@ -774,6 +867,14 @@ function productCountFor(categoryId, isSub) {
 // ---- Product helpers ----
 function getProducts() { return loadJSON(LS.products, []); }
 function saveProducts(arr) { return saveJSON(LS.products, arr); }
+function getCoupons() { return loadJSON(LS.coupons, []); }
+function saveCoupons(arr) {
+  var previous = getCoupons();
+  return persistCollection(LS.coupons, 'coupons', arr, previous).then(function (saved) {
+    if (saved) localStorage.setItem(LS.coupons, JSON.stringify(arr));
+    return saved;
+  });
+}
 
 // ============================================================
 // TABS
@@ -798,6 +899,13 @@ function renderTab(tab) {
   if (tab === 'categories') renderCategoriesTab();
   if (tab === 'subcategories') renderSubcategoriesTab();
   if (tab === 'products') renderProductsTab();
+  if (tab === 'coupons') {
+    renderCoupons();
+    refreshCoupons().catch(function (error) {
+      setCloudStatus('Could not refresh coupon usage: ' + error.message, true);
+    });
+  }
+  if (tab === 'coupons') renderCoupons();
   if (tab === 'orders') renderOrders();
   if (tab === 'settings') renderSettings();
   if (tab === 'users') renderUsers();
@@ -829,7 +937,8 @@ function renderDashboard() {
     return '<div class="order-row" style="grid-template-columns:1.4fr 1fr .8fr 1fr;">' +
       '<div><span class="label">Product</span><span class="value">' + escapeHTML(o.gameTitle || '') + ' — ' + escapeHTML(o.packLabel || '') + '</span></div>' +
       '<div><span class="label">User</span><span class="value">' + escapeHTML(o.username || '') + '</span></div>' +
-      '<div><span class="label">Total</span><span class="value order-price">Rs' + (o.total || 0) + '</span></div>' +
+      '<div><span class="label">Total</span><span class="value order-price">Rs' + (o.total || 0) + '</span>' +
+        (o.couponCode ? '<span class="label">Coupon</span><span class="value">' + escapeHTML(o.couponCode) + ' · -Rs' + (Number(o.discountAmount) || 0) + '</span>' : '') + '</div>' +
       '<div><span class="label">Status</span><span class="value">' + escapeHTML(o.status || 'Pending') + '</span></div>' +
       '</div>';
   }).join('');
@@ -1308,6 +1417,7 @@ function openProductForm(id) {
   var form = document.getElementById('productForm');
   form.reset();
   form.setAttribute('data-editing-id', '');
+  renderProductOptionRows([]);
   populateProductMainCategorySelect(null);
   refreshProductSubcategoryOptions(null, null);
 
@@ -1327,7 +1437,7 @@ function openProductForm(id) {
       document.getElementById('productDelivery').value = p.delivery || '1-5 min';
       document.getElementById('productAccountType').value = p.account_type || 'email';
       document.getElementById('productNeedsServer').checked = !!p.needs_server;
-      document.getElementById('productPackages').value = JSON.stringify(p.packages || [], null, 2);
+      renderProductOptionRows(p.packages || []);
       document.getElementById('productStatus').value = p.status || 'active';
       document.getElementById('productFeatured').checked = !!p.featured;
       populateProductMainCategorySelect(p.category_id);
@@ -1340,6 +1450,46 @@ function openProductForm(id) {
 }
 function hideProductForm() { document.getElementById('productFormContainer').classList.add('hidden'); }
 
+function addProductOptionRow(pkg) {
+  var row = document.createElement('div');
+  row.className = 'package-editor-row';
+  if (pkg && pkg.id) row.setAttribute('data-package-id', String(pkg.id));
+
+  var label = document.createElement('input');
+  label.type = 'text';
+  label.className = 'package-option-label';
+  label.placeholder = 'Option name (e.g. 1 Month or 30 Diamonds)';
+  label.setAttribute('aria-label', 'Option name');
+  label.value = pkg && pkg.label ? pkg.label : '';
+
+  var price = document.createElement('input');
+  price.type = 'number';
+  price.className = 'package-option-price';
+  price.min = '0';
+  price.step = '0.01';
+  price.placeholder = 'Price (Rs)';
+  price.setAttribute('aria-label', 'Option price in rupees');
+  price.value = pkg && pkg.value != null ? pkg.value : '';
+
+  var remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'package-remove-btn';
+  remove.textContent = 'Remove';
+  remove.setAttribute('aria-label', 'Remove purchase option');
+  remove.addEventListener('click', function () { row.remove(); });
+
+  row.appendChild(label);
+  row.appendChild(price);
+  row.appendChild(remove);
+  document.getElementById('productOptions').appendChild(row);
+}
+
+function renderProductOptionRows(packages) {
+  var container = document.getElementById('productOptions');
+  container.textContent = '';
+  packages.forEach(addProductOptionRow);
+}
+
 function handleProductFormSubmit(e) {
   e.preventDefault();
   ['productName', 'productMainCategory', 'productSubCategory', 'productPrice'].forEach(clearFieldError);
@@ -1349,7 +1499,8 @@ function handleProductFormSubmit(e) {
   var brand = document.getElementById('productBrand').value.trim();
   var mainCategoryId = document.getElementById('productMainCategory').value;
   var subCategoryId = document.getElementById('productSubCategory').value;
-  var price = parseFloat(document.getElementById('productPrice').value);
+  var basePriceRaw = document.getElementById('productPrice').value;
+  var price = basePriceRaw === '' ? NaN : parseFloat(basePriceRaw);
   var discountRaw = document.getElementById('productDiscountPrice').value;
   var discount = discountRaw === '' ? null : parseFloat(discountRaw);
   var stock = parseInt(document.getElementById('productStock').value, 10);
@@ -1359,8 +1510,8 @@ function handleProductFormSubmit(e) {
   var delivery = document.getElementById('productDelivery').value.trim() || '1-5 min';
   var accountType = document.getElementById('productAccountType').value;
   var needsServer = document.getElementById('productNeedsServer').checked;
-  var packagesText = document.getElementById('productPackages').value.trim();
   var packages = [];
+  var optionRows = document.querySelectorAll('#productOptions .package-editor-row');
   var status = document.getElementById('productStatus').value;
   var featured = document.getElementById('productFeatured').checked;
 
@@ -1370,20 +1521,40 @@ function handleProductFormSubmit(e) {
   if (mainCategoryId && childrenOf(mainCategoryId).length > 0 && !subCategoryId) {
     setFieldError('productSubCategory', 'This category has sub-categories — please choose one.'); valid = false;
   }
-  if (isNaN(price) || price < 0) { setFieldError('productPrice', 'Enter a valid price.'); valid = false; }
-  if (packagesText) {
-    try {
-      packages = JSON.parse(packagesText);
-      if (!Array.isArray(packages) || packages.some(function (pkg) {
-        return !pkg || !pkg.id || !pkg.label || !Number.isFinite(Number(pkg.value)) || Number(pkg.value) < 0;
-      })) throw new Error('Invalid packages');
-    } catch (error) {
-      showToast('Packages must be valid JSON with id, label, and numeric value fields.');
-      valid = false;
+  if (optionRows.length) {
+    Array.prototype.forEach.call(optionRows, function (row) {
+      var labelInput = row.querySelector('.package-option-label');
+      var priceInput = row.querySelector('.package-option-price');
+      var label = labelInput.value.trim();
+      var optionPrice = priceInput.value === '' ? NaN : Number(priceInput.value);
+      labelInput.classList.toggle('invalid', !label);
+      priceInput.classList.toggle('invalid', !Number.isFinite(optionPrice) || optionPrice < 0);
+      if (!label || !Number.isFinite(optionPrice) || optionPrice < 0) {
+        valid = false;
+        return;
+      }
+      packages.push({
+        id: row.getAttribute('data-package-id') || uid('pkg'),
+        label: label,
+        value: optionPrice
+      });
+    });
+    if (packages.length) {
+      price = Math.min.apply(null, packages.map(function (pkg) { return pkg.value; }));
+      clearFieldError('productPrice');
     }
   } else {
     packages = [{ id: 'default', label: '1 item', value: (discount !== null && !isNaN(discount)) ? discount : price }];
+    if (isNaN(price) || price < 0) {
+      setFieldError('productPrice', 'Enter a valid base price or add a priced option.');
+      valid = false;
+    }
   }
+  if (discount !== null && (!Number.isFinite(discount) || discount < 0)) {
+    showToast('Enter a valid discount price.');
+    valid = false;
+  }
+  if (!valid && optionRows.length) showToast('Each purchase option needs a name and a valid price.');
   if (!valid) return;
 
   var products = getProducts();
@@ -1418,6 +1589,150 @@ function deleteProduct(id) {
 }
 
 // ============================================================
+// COUPONS
+// ============================================================
+var editingCouponId = null;
+
+function couponDateTimeLocal(value) {
+  var date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
+function couponStatus(coupon) {
+  var now = Date.now();
+  if (!coupon.is_active) return 'Inactive';
+  if (new Date(coupon.starts_at).getTime() > now) return 'Scheduled';
+  if (new Date(coupon.expires_at).getTime() <= now) return 'Expired';
+  if (Number(coupon.usage_count) >= Number(coupon.max_uses)) return 'Limit reached';
+  return 'Active';
+}
+
+function renderCoupons() {
+  var coupons = getCoupons().slice().sort(function (a, b) {
+    return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+  });
+  var body = document.getElementById('couponsTableBody');
+  if (!coupons.length) {
+    body.innerHTML = '<tr><td colspan="7" class="empty-msg">No coupons yet. Create one to offer a discount.</td></tr>';
+    return;
+  }
+  body.innerHTML = coupons.map(function (coupon) {
+    return '<tr>' +
+      '<td><strong>' + escapeHTML(coupon.code) + '</strong></td>' +
+      '<td>' + escapeHTML(coupon.percent_off) + '% off</td>' +
+      '<td>' + escapeHTML(new Date(coupon.starts_at).toLocaleString()) + '</td>' +
+      '<td>' + escapeHTML(new Date(coupon.expires_at).toLocaleString()) + '</td>' +
+      '<td>' + Number(coupon.usage_count || 0) + ' / ' + Number(coupon.max_uses) + '</td>' +
+      '<td>' + escapeHTML(couponStatus(coupon)) + '</td>' +
+      '<td><div class="row-actions">' +
+        '<button onclick="openCouponForm(\'' + escapeAttr(coupon.id) + '\')">Edit</button>' +
+        '<button onclick="toggleCouponStatus(\'' + escapeAttr(coupon.id) + '\')">' + (coupon.is_active ? 'Deactivate' : 'Activate') + '</button>' +
+      '</div></td>' +
+      '</tr>';
+  }).join('');
+}
+
+async function refreshCoupons() {
+  var result = await window.getSupabaseClient().from('coupons').select('*').order('created_at', { ascending: false });
+  if (result.error) throw result.error;
+  localStorage.setItem(LS.coupons, JSON.stringify(result.data || []));
+  renderCoupons();
+}
+
+function openCouponForm(id) {
+  var form = document.getElementById('couponForm');
+  form.reset();
+  editingCouponId = id || null;
+  document.getElementById('couponFormTitle').textContent = id ? 'Edit Discount Coupon' : 'Add Discount Coupon';
+  document.getElementById('couponActive').checked = true;
+  document.getElementById('couponUsageHint').textContent = '';
+  if (id) {
+    var coupon = getCoupons().filter(function (item) { return item.id === id; })[0];
+    if (!coupon) return;
+    document.getElementById('couponCode').value = coupon.code;
+    document.getElementById('couponPercent').value = coupon.percent_off;
+    document.getElementById('couponStartsAt').value = couponDateTimeLocal(coupon.starts_at);
+    document.getElementById('couponExpiresAt').value = couponDateTimeLocal(coupon.expires_at);
+    document.getElementById('couponMaxUses').value = coupon.max_uses;
+    document.getElementById('couponActive').checked = !!coupon.is_active;
+    document.getElementById('couponUsageHint').textContent =
+      Number(coupon.usage_count || 0) + ' customer(s) already used this coupon; the limit cannot be lowered below this number.';
+  }
+  document.getElementById('couponFormContainer').classList.remove('hidden');
+}
+
+function hideCouponForm() {
+  document.getElementById('couponFormContainer').classList.add('hidden');
+}
+
+async function handleCouponFormSubmit(event) {
+  event.preventDefault();
+  var code = document.getElementById('couponCode').value.trim().toUpperCase();
+  var percentOff = Number(document.getElementById('couponPercent').value);
+  var startsAt = new Date(document.getElementById('couponStartsAt').value);
+  var expiresAt = new Date(document.getElementById('couponExpiresAt').value);
+  var maxUses = Number(document.getElementById('couponMaxUses').value);
+  var existing = getCoupons().filter(function (coupon) { return coupon.id === editingCouponId; })[0];
+
+  if (!/^[A-Z0-9][A-Z0-9_-]{2,31}$/.test(code)) {
+    showToast('Use 3–32 letters, numbers, hyphens, or underscores for the coupon code.');
+    return;
+  }
+  if (!Number.isFinite(percentOff) || percentOff <= 0 || percentOff > 100) {
+    showToast('Enter a percentage greater than 0 and no more than 100.');
+    return;
+  }
+  if (!Number.isFinite(startsAt.getTime()) || !Number.isFinite(expiresAt.getTime()) || expiresAt <= startsAt) {
+    showToast('Choose a valid start and end time; the end must be later than the start.');
+    return;
+  }
+  if (!Number.isInteger(maxUses) || maxUses < 1 || (existing && maxUses < Number(existing.usage_count || 0))) {
+    showToast('The customer limit must be a whole number and cannot be lower than the current uses.');
+    return;
+  }
+  if (getCoupons().some(function (coupon) { return coupon.code === code && coupon.id !== editingCouponId; })) {
+    showToast('A coupon with this code already exists.');
+    return;
+  }
+
+  var now = nowISO();
+  var data = {
+    id: editingCouponId || uid('coupon'),
+    code: code,
+    percent_off: percentOff,
+    starts_at: startsAt.toISOString(),
+    expires_at: expiresAt.toISOString(),
+    max_uses: maxUses,
+    usage_count: existing ? Number(existing.usage_count || 0) : 0,
+    is_active: document.getElementById('couponActive').checked,
+    updated_at: now
+  };
+  if (!existing) data.created_at = now;
+  var coupons = getCoupons();
+  if (existing) {
+    coupons = coupons.map(function (coupon) { return coupon.id === editingCouponId ? data : coupon; });
+  } else {
+    coupons.push(data);
+  }
+  if (!await saveCoupons(coupons)) return;
+  hideCouponForm();
+  renderCoupons();
+  showToast('Coupon saved.');
+}
+
+async function toggleCouponStatus(id) {
+  var coupons = getCoupons();
+  var coupon = coupons.filter(function (item) { return item.id === id; })[0];
+  if (!coupon) return;
+  coupon.is_active = !coupon.is_active;
+  coupon.updated_at = nowISO();
+  if (!await saveCoupons(coupons)) return;
+  renderCoupons();
+  showToast(coupon.is_active ? 'Coupon activated.' : 'Coupon deactivated.');
+}
+
+// ============================================================
 // ORDERS
 // ============================================================
 function renderOrders() {
@@ -1431,7 +1746,8 @@ function renderOrders() {
       '<div><span class="label">Product</span><span class="value">' + escapeHTML(o.gameTitle || '') + '<br>' + escapeHTML(o.packLabel || '') + '</span></div>' +
       '<div><span class="label">Account / UID</span><span class="value">' + escapeHTML(o.uid || '') + '</span></div>' +
       '<div><span class="label">Qty</span><span class="value">' + (o.quantity || 1) + '</span></div>' +
-      '<div><span class="label">Total</span><span class="value order-price">Rs' + (o.total || 0) + '</span></div>' +
+      '<div><span class="label">Total</span><span class="value order-price">Rs' + (o.total || 0) + '</span>' +
+        (o.couponCode ? '<span class="label">Coupon</span><span class="value">' + escapeHTML(o.couponCode) + ' · -Rs' + (Number(o.discountAmount) || 0) + '</span>' : '') + '</div>' +
       '<div><span class="label">User / Code</span><span class="value">' + escapeHTML(o.username || '') + ' · ' + escapeHTML(o.esewaCode || '') + '</span></div>' +
       '<div style="display:flex;align-items:center;gap:8px;">' +
       '<select class="status-select status-' + status + '" onchange="updateOrderStatus(\'' + escapeAttr(o.id) + '\', this.value)">' +
@@ -1532,18 +1848,23 @@ function exportUsersCSV() {
 function exportAllData() {
   downloadFile('rsbazar-export.json', JSON.stringify({
     categories: getCategories(), products: getProducts(), orders: loadJSON(LS.orders, []),
+    coupons: getCoupons(),
     settings: loadJSON(LS.settings, {}), users: loadJSON(LS.users, [])
   }, null, 2), 'application/json');
 }
 async function clearAllData() {
-  if (!confirm('This permanently deletes all Supabase categories, products, and orders, and resets local settings. Continue?')) return;
+  if (!confirm('This permanently deletes all Supabase categories, products, and orders, deactivates coupons, and resets local settings. Coupon usage history is retained. Continue?')) return;
+  var couponsSaved = await saveCoupons(getCoupons().map(function (coupon) {
+    return Object.assign({}, coupon, { is_active: false, updated_at: nowISO() });
+  }));
+  if (!couponsSaved) return;
   var ordersSaved = await saveJSON(LS.orders, []);
   var productsSaved = await saveJSON(LS.products, []);
   var categoriesSaved = await saveJSON(LS.categories, []);
   localStorage.removeItem(LS.settings);
   ensureSeed();
   renderTab('dashboard');
-  if (ordersSaved && productsSaved && categoriesSaved) showToast('Catalog and orders cleared.');
+  if (ordersSaved && productsSaved && categoriesSaved) showToast('Catalog and orders cleared; coupons deactivated.');
 }
 function downloadFile(filename, content, mime) {
   var blob = new Blob([content], { type: mime });
@@ -1679,7 +2000,8 @@ document.addEventListener('DOMContentLoaded', async function () {
       client.from('categories').select('*').order('sort_order'),
       client.from('products').select('*').order('created_at', { ascending: false }),
       client.from('orders').select('*').order('created_at', { ascending: false }),
-      client.from('profiles').select('id,username,email,is_admin').order('created_at', { ascending: true })
+      client.from('profiles').select('id,username,email,is_admin').order('created_at', { ascending: true }),
+      client.from('coupons').select('*').order('created_at', { ascending: false })
     ]);
     results.forEach(function (result) { if (result.error) throw result.error; });
     localStorage.setItem(LS.categories, JSON.stringify(results[0].data || []));
@@ -1705,11 +2027,15 @@ document.addEventListener('DOMContentLoaded', async function () {
         paymentMethod: row.payment_method,
         paymentCode: row.payment_code,
         esewaCode: row.payment_method === 'esewa' ? row.payment_code : '',
+        couponCode: row.coupon_code || '',
+        discountAmount: Number(row.discount_amount) || 0,
+        checkoutId: row.checkout_id || null,
         timestamp: row.created_at,
         status: row.status,
         username: adminProfileById[row.user_id] || row.user_id
       };
     })));
+    localStorage.setItem(LS.coupons, JSON.stringify(results[4].data || []));
 
     ensureSeed();
     document.getElementById('adminDashboard').classList.remove('hidden');
@@ -1746,10 +2072,13 @@ document.addEventListener('DOMContentLoaded', async function () {
 
   // Product tab
   document.getElementById('addProductBtn').addEventListener('click', function () { openProductForm(null); });
+  document.getElementById('addProductOptionBtn').addEventListener('click', function () { addProductOptionRow(null); });
   document.getElementById('productForm').addEventListener('submit', handleProductFormSubmit);
   document.getElementById('productMainCategory').addEventListener('change', function (e) {
     refreshProductSubcategoryOptions(e.target.value || null, null);
   });
+  document.getElementById('addCouponBtn').addEventListener('click', function () { openCouponForm(null); });
+  document.getElementById('couponForm').addEventListener('submit', handleCouponFormSubmit);
   document.getElementById('productSearch').addEventListener('input', function (e) {
     productState.search = e.target.value; productState.page = 1; renderProductsTab();
   });

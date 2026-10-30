@@ -10,7 +10,7 @@ That key is intended for browser use. Never put a `service_role` key, database p
 
 ## 2. Create the tables and security policies
 
-Open the Supabase SQL Editor and run [`supabase-schema.sql`](./supabase-schema.sql). It creates the profile, category, product, and order tables, the signup profile trigger, and row-level security policies. Do not disable RLS.
+Open the Supabase SQL Editor and run [`supabase-schema.sql`](./supabase-schema.sql). It creates the profile, category, product, order, and coupon tables, the signup profile trigger, and row-level security policies. If the project already has the earlier schema, run the updated file again to add coupon support and the order discount fields. Do not disable RLS.
 
 ## 3. Configure Auth
 
@@ -30,17 +30,13 @@ Only an existing admin can grant or remove admin roles through the admin page. T
 
 ## 5. Add catalog data
 
-Sign in as the admin and open `admin.html`. Add parent categories (for example Games, Subscriptions, and Level Up), optional subcategories, and products. Product packages are JSON arrays such as:
+Sign in as the admin and open `admin.html`. Add parent categories (for example Games, Subscriptions, and Level Up), optional subcategories, and products. Product purchase options are added in the product form as a customer-facing label and numeric price (for example, `25 Diamonds` at Rs 35). The one-click import of the current storefront catalog starts products with a high placeholder stock value; review and set accurate stock levels in the Products tab before taking orders. A successful order reserves stock, and cancelling an order restores it. Public pages show active products and categories only.
 
-```json
-[{"id":"ff25","label":"25 Diamonds","value":35},{"id":"ff50","label":"50 Diamonds","value":65}]
-```
+In the product form, choose whether checkout should collect an email address or a game UID. Enable the server-ID option for products that need one. Add purchase options with a label and price (for example, `1 Month` or `30 Diamonds`); the selected option is shown in checkout and saved with the order.
 
-Each package needs a unique `id`, a customer-facing `label`, and a numeric `value`. The one-click import of the current storefront catalog starts products with a high placeholder stock value; review and set accurate stock levels in the Products tab before taking orders. A successful order reserves stock, and cancelling an order restores it. Public pages show active products and categories only.
+In the Coupons tab, create a percentage-off code, set when it starts and expires, and choose the maximum number of customers who can redeem it. Each customer can use a coupon once, and only one coupon can be applied per checkout. Customers apply the code at checkout; the database validates the date, usage limit, one-use rule, and discount when the order is submitted. Coupon uses are counted when an order is placed, including orders that are later cancelled.
 
-In the product form, choose whether checkout should collect an email address or a game UID. Enable the server-ID option for products that need one. The entered account value and optional server ID are saved with the order and shown in customer/admin order history.
-
-Customer orders require a Supabase account. RLS restricts customers to their own orders, and the database checks the selected product/package price and stock when an order is submitted. Checkout currently records the selected manual payment method and reference code; it does not process a payment.
+Customer orders require a Supabase account. RLS restricts customers to their own orders, and the database checks the selected product/package price, stock, and coupon discount when an order is submitted. Checkout currently records the selected manual payment method and reference code; it does not process a payment.
 
 ## Local development
 

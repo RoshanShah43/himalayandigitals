@@ -183,6 +183,7 @@ var BUILTIN_GAME_DATA = JSON.parse(JSON.stringify(GAME_DATA));
 var activeCategory = 'all';
 var activeSubcat = 'all';
 var catalogReady = false;
+var appliedCoupon = null;
 
 var cart = [];
 try { cart = JSON.parse(localStorage.getItem('cart')) || []; } catch (e) { cart = []; }
@@ -518,6 +519,85 @@ function cartItemTotal(item) {
   return Number(item.price) * Number(item.quantity);
 }
 
+function couponDiscountForItem(item, percentOff) {
+  return Math.round((cartItemTotal(item) * percentOff / 100 + Number.EPSILON) * 100) / 100;
+}
+
+function updateCheckoutSummary() {
+  var summary = document.getElementById('checkoutCartSummary');
+  var subtotal = 0;
+  var discount = 0;
+  var html = '';
+  cart.forEach(function (item) {
+    var itemTotal = cartItemTotal(item);
+    subtotal += itemTotal;
+    html += '<div class="checkout-item"><span>' + escapeHTML(item.gameTitle) + ' - ' + escapeHTML(item.packageLabel) +
+      '</span><span>Rs' + formatMoney(itemTotal) + '</span></div>';
+    if (appliedCoupon) discount += couponDiscountForItem(item, appliedCoupon.percentOff);
+  });
+  if (summary) summary.innerHTML = html;
+  var discountRow = document.getElementById('checkoutDiscountRow');
+  if (discountRow) discountRow.hidden = !appliedCoupon;
+  var discountLabel = document.getElementById('checkoutDiscountLabel');
+  if (discountLabel) discountLabel.textContent = appliedCoupon ? 'Coupon ' + appliedCoupon.code : 'Coupon discount';
+  var discountValue = document.getElementById('checkoutDiscount');
+  if (discountValue) discountValue.textContent = '-Rs' + formatMoney(discount);
+  var total = document.getElementById('checkoutTotal');
+  if (total) total.textContent = 'Rs' + formatMoney(Math.max(0, subtotal - discount));
+}
+
+function setCouponMessage(message, state) {
+  var element = document.getElementById('couponMessage');
+  if (!element) return;
+  element.textContent = message;
+  element.className = 'coupon-message' + (state ? ' ' + state : '');
+}
+
+async function applyCheckoutCoupon() {
+  var input = document.getElementById('checkoutCouponCode');
+  var button = document.getElementById('applyCouponBtn');
+  var code = input.value.trim().toUpperCase();
+  if (!code) {
+    appliedCoupon = null;
+    setCouponMessage('Enter a coupon code.', 'error');
+    updateCheckoutSummary();
+    return;
+  }
+
+  button.disabled = true;
+  setCouponMessage('Checking coupon…', '');
+  try {
+    var client = window.getSupabaseClient();
+    var result = await client.rpc('check_coupon', { p_code: code });
+    if (result.error) throw result.error;
+    var percentOff = Number(result.data);
+    if (!Number.isFinite(percentOff) || percentOff <= 0 || percentOff > 100) {
+      throw new Error('The coupon returned an invalid discount.');
+    }
+    appliedCoupon = { code: code, percentOff: percentOff };
+    input.value = code;
+    setCouponMessage(code + ' applied — ' + formatMoney(percentOff) + '% off your order.', 'success');
+    updateCheckoutSummary();
+  } catch (error) {
+    appliedCoupon = null;
+    updateCheckoutSummary();
+    setCouponMessage(error.message || 'This coupon could not be applied.', 'error');
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function generateCheckoutId() {
+  if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+  var bytes = new Uint8Array(16);
+  if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(bytes);
+  else for (var i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+  bytes[6] = (bytes[6] & 15) | 64;
+  bytes[8] = (bytes[8] & 63) | 128;
+  var hex = Array.prototype.map.call(bytes, function (byte) { return byte.toString(16).padStart(2, '0'); }).join('');
+  return hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-' + hex.slice(12, 16) + '-' + hex.slice(16, 20) + '-' + hex.slice(20);
+}
+
 function setQuantity(value) {
   var input = document.getElementById('quantity');
   input.value = Math.max(1, parseInt(value, 10) || 1);
@@ -668,19 +748,10 @@ function proceedToCheckout() {
   if (cart.length === 0) { alert('Your cart is empty!'); return; }
   document.getElementById('cartDrawer').classList.remove('open');
 
-  var summary = document.getElementById('checkoutCartSummary');
-  var total = document.getElementById('checkoutTotal');
-  var html = '';
-  var sum = 0;
-
-  cart.forEach(function (item) {
-    var itemTotal = cartItemTotal(item);
-    sum += itemTotal;
-    html += '<div class="checkout-item"><span>' + escapeHTML(item.gameTitle) + ' - ' + escapeHTML(item.packageLabel) + '</span><span>Rs' + formatMoney(itemTotal) + '</span></div>';
-  });
-
-  if (summary) summary.innerHTML = html;
-  if (total) total.textContent = 'Rs' + formatMoney(sum);
+  appliedCoupon = null;
+  document.getElementById('checkoutCouponCode').value = '';
+  setCouponMessage('', '');
+  updateCheckoutSummary();
 
   var esewaCode = generateOrderCode();
   var khaltiCode = generateOrderCode();
@@ -736,6 +807,29 @@ async function placeOrder(event) {
     return;
   }
 
+  var couponCode = appliedCoupon ? appliedCoupon.code : '';
+  var checkoutId = appliedCoupon ? generateCheckoutId() : null;
+  if (appliedCoupon) {
+    try {
+      var couponCheck = await client.rpc('check_coupon', { p_code: couponCode });
+      if (couponCheck.error) throw couponCheck.error;
+      if (Number(couponCheck.data) !== appliedCoupon.percentOff) {
+        appliedCoupon = null;
+        updateCheckoutSummary();
+        setCouponMessage('The coupon changed. Apply it again before placing your order.', 'error');
+        return;
+      }
+    } catch (error) {
+      appliedCoupon = null;
+      updateCheckoutSummary();
+      setCouponMessage(error.message || 'The coupon is no longer valid.', 'error');
+      return;
+    }
+  } else if (document.getElementById('checkoutCouponCode').value.trim()) {
+    setCouponMessage('Apply the coupon before placing your order.', 'error');
+    return;
+  }
+
   var paymentMethod = document.getElementById('paymentMethod').value;
   var paymentCode = 'N/A';
 
@@ -748,6 +842,7 @@ async function placeOrder(event) {
   }
 
   var orders = cart.map(function (item) {
+    var discountAmount = appliedCoupon ? couponDiscountForItem(item, appliedCoupon.percentOff) : 0;
     return {
       user_id: auth.data.user.id,
       product_id: item.productId,
@@ -758,7 +853,10 @@ async function placeOrder(event) {
       server_id: item.serverId || '',
       quantity: item.quantity,
       price: item.price,
-      total: cartItemTotal(item),
+      total: cartItemTotal(item) - discountAmount,
+      coupon_code: couponCode,
+      discount_amount: discountAmount,
+      checkout_id: checkoutId,
       payment_method: paymentMethod,
       payment_code: paymentCode,
       status: 'Pending'
@@ -773,6 +871,7 @@ async function placeOrder(event) {
   }
 
   cart = [];
+  appliedCoupon = null;
   localStorage.setItem('cart', JSON.stringify(cart));
   updateCartBadge();
 
@@ -831,6 +930,17 @@ document.addEventListener('DOMContentLoaded', function () {
       showNotification('Bank code copied!');
     });
   }
+
+  var applyCouponBtn = document.getElementById('applyCouponBtn');
+  if (applyCouponBtn) applyCouponBtn.addEventListener('click', applyCheckoutCoupon);
+  var couponInput = document.getElementById('checkoutCouponCode');
+  if (couponInput) couponInput.addEventListener('input', function () {
+    if (appliedCoupon && couponInput.value.trim().toUpperCase() !== appliedCoupon.code) {
+      appliedCoupon = null;
+      setCouponMessage('', '');
+      updateCheckoutSummary();
+    }
+  });
 
   updatePaymentPanels();
 
