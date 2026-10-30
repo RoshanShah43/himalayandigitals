@@ -106,6 +106,7 @@
     font-size:13.5px;
     margin-top:6px;
   }
+  .account-disabled{display:none;}
 
   .tabs{
     display:flex;
@@ -273,7 +274,7 @@
     <div class="brand">
       <span class="eyebrow">Member Entry Token</span>
       <h1>RS Bazar</h1>
-      <p>Sign in, or start a new account</p>
+      <p>Sign in or create an account</p>
     </div>
 
     <div class="banner error" id="errorMsg"></div>
@@ -288,9 +289,9 @@
     <div class="panel active" id="loginPanel">
       <form id="loginForm" novalidate>
         <div class="field">
-          <label for="loginUsername">Username or email</label>
+          <label for="loginUsername">Email address</label>
           <div class="field-input">
-            <input type="text" id="loginUsername" placeholder="roshanshah or you@example.com" autocomplete="username">
+            <input type="email" id="loginUsername" placeholder="you@example.com" autocomplete="username" required>
           </div>
         </div>
         <div class="field">
@@ -304,9 +305,7 @@
           <span class="spinner"></span><span class="btn-label">Log in</span>
         </button>
       </form>
-      <div class="demo-note">
-        Try it now — <b>demo</b> / <b>demo123</b>, or <b>roshanshah</b> / <b>killer3051Q</b> (admin).
-      </div>
+      <div class="demo-note">Admin access is granted by a database role. New accounts may need email confirmation.</div>
     </div>
 
     <!-- SIGNUP -->
@@ -355,53 +354,24 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="supabase-client.js"></script>
 <script>
-/* =========================================================================
-   RS Bazar auth — fully working in the browser, no backend required.
-   Uses the SAME localStorage keys as admin.html so the two pages share one
-   "database": accounts live under "users" (admin.html's Users tab reads
-   and edits this exact array), and a successful login sets "loggedInUser"
-   / "isAdmin" — which is exactly what admin.html checks on load to decide
-   whether to let someone in or bounce them back here.
-   If you later add a real backend, replace loadUsers()/saveNewUser() with
-   real fetch() calls — the rest of the UI (validation, banners, spinners)
-   needs no changes.
-   ========================================================================= */
-
-const STORAGE_KEY = 'users'; // shared with admin.html's LS.users
-
-const DEFAULT_USERS = [
-  { username: 'roshanshah', email: 'roshan@example.com', password: 'killer3051Q', isAdmin: true },
-  { username: 'testuser',   email: 'test@example.com',   password: 'test123',      isAdmin: false },
-  { username: 'demo',       email: 'demo@example.com',   password: 'demo123',      isAdmin: false }
-];
-
-// Seed the shared "users" store once, so admin.html's Users tab has
-// something to show even before anyone signs up.
-(function ensureUsersSeeded(){
-  if (localStorage.getItem(STORAGE_KEY) === null) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_USERS));
+async function authRequest(path, body) {
+  const client = window.getSupabaseClient();
+  if (path === 'login') {
+    const result = await client.auth.signInWithPassword({ email: body.email, password: body.password });
+    if (result.error) throw result.error;
+    return result.data;
   }
-})();
-
-function loadUsers(){
-  try {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    return Array.isArray(stored) ? stored : DEFAULT_USERS.slice();
-  } catch(e){ return DEFAULT_USERS.slice(); }
-}
-
-function saveNewUser(user){
-  const stored = loadUsers();
-  stored.push(user);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-}
-
-function findUser(identifier){
-  const id = identifier.trim().toLowerCase();
-  return loadUsers().find(u =>
-    u.username.toLowerCase() === id || (u.email && u.email.toLowerCase() === id)
-  ) || null;
+  const result = await client.auth.signUp({
+    email: body.email,
+    password: body.password,
+    options: { data: { username: body.username } }
+  });
+  if (result.error) throw result.error;
+  return result.data;
 }
 
 /* ---------- tab switching ---------- */
@@ -469,8 +439,7 @@ suUsername.addEventListener('input', () => {
   const v = suUsername.value.trim();
   if (!v){ setHint(usernameHint, suUsername, '', false); return; }
   if (v.length < 3){ setHint(usernameHint, suUsername, 'Username needs at least 3 characters.', true); return; }
-  if (findUser(v)){ setHint(usernameHint, suUsername, 'That username is already taken.', true); return; }
-  setHint(usernameHint, suUsername, 'Username is available.', false);
+  setHint(usernameHint, suUsername, 'Username will be checked when you create the account.', false);
 });
 
 suEmail.addEventListener('input', () => {
@@ -478,7 +447,6 @@ suEmail.addEventListener('input', () => {
   if (!v){ setHint(emailHint, suEmail, '', false); return; }
   const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
   if (!valid){ setHint(emailHint, suEmail, 'Enter a valid email address.', true); return; }
-  if (findUser(v)){ setHint(emailHint, suEmail, 'An account already uses this email.', true); return; }
   setHint(emailHint, suEmail, '', false);
 });
 
@@ -521,7 +489,7 @@ function setLoading(btn, isLoading){
   btn.classList.toggle('loading', isLoading);
 }
 
-loginForm.addEventListener('submit', function(e){
+loginForm.addEventListener('submit', async function(e){
   e.preventDefault();
   clearBanners();
 
@@ -534,34 +502,26 @@ loginForm.addEventListener('submit', function(e){
   }
 
   setLoading(loginSubmit, true);
-  setTimeout(() => { // tiny delay so the loading state is visible
-    const user = findUser(username);
-    if (!user || user.password !== password){
-      setLoading(loginSubmit, false);
-      showError('Incorrect username/email or password.');
-      return;
-    }
-
-    localStorage.setItem('loggedInUser', user.username);
-    if (user.isAdmin) {
-      localStorage.setItem('isAdmin', '1');
-    } else {
-      localStorage.removeItem('isAdmin');
-    }
-
+  try {
+    const result = await authRequest('login', { email: username, password });
+    const user = result.user;
+    const client = window.getSupabaseClient();
+    const profile = await client.from('profiles').select('is_admin').eq('id', user.id).single();
+    if (profile.error) throw profile.error;
     setLoading(loginSubmit, false);
     showSuccess('Login successful! Redirecting…');
-    setTimeout(() => {
-      window.location.href = user.isAdmin ? 'admin.html' : 'hlo.html';
-    }, 900);
-  }, 400);
+    setTimeout(() => { window.location.href = profile.data.is_admin ? 'admin.html' : 'index.html'; }, 700);
+  } catch (error) {
+    setLoading(loginSubmit, false);
+    showError(error.message);
+  }
 });
 
 /* ---------- submit: signup ---------- */
 const signupForm = document.getElementById('signupForm');
 const signupSubmit = document.getElementById('signupSubmit');
 
-signupForm.addEventListener('submit', function(e){
+signupForm.addEventListener('submit', async function(e){
   e.preventDefault();
   clearBanners();
 
@@ -590,27 +550,21 @@ signupForm.addEventListener('submit', function(e){
     showError('Passwords do not match.');
     return;
   }
-  if (findUser(username)){
-    showError('That username is already taken.');
-    return;
-  }
-  if (findUser(email)){
-    showError('An account already uses this email.');
-    return;
-  }
-
   setLoading(signupSubmit, true);
-  setTimeout(() => {
-    saveNewUser({ username, email, password, isAdmin: false });
+  try {
+    const result = await authRequest('register', { username, email, password });
     setLoading(signupSubmit, false);
-    showSuccess('Account created! You can log in now.');
+    showSuccess(result.session ? 'Account created. You can now log in.' : 'Account created. Check your email to confirm your account, then log in.');
     signupForm.reset();
     meterFill.style.width = '0%';
     [usernameHint, emailHint, passwordHint, confirmHint].forEach(h => h.classList.remove('err'));
     passwordHint.textContent = 'Use 6+ characters. Mix in a number for a stronger token.';
     [suUsername, suEmail, suPassword, suConfirm].forEach(i => i.classList.remove('invalid'));
     setTimeout(() => showTab('login'), 1200);
-  }, 500);
+  } catch (error) {
+    setLoading(signupSubmit, false);
+    showError(error.message);
+  }
 });
 </script>
 </body>

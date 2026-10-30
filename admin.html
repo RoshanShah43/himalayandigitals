@@ -242,6 +242,7 @@ input,select,textarea{font-family:inherit;}
 </style>
 </head>
 <body>
+    <div id="adminLoadError" class="empty-msg" style="margin:30px auto;max-width:760px;padding:20px;">Verifying Supabase admin access…</div>
     <div id="adminDashboard" class="admin-dashboard hidden">
         <header class="admin-header">
             <h1>RS Bazar Admin Panel</h1>
@@ -270,6 +271,8 @@ input,select,textarea{font-family:inherit;}
                     <button id="clearAllDataBtn" class="btn-secondary">Clear All Data</button>
                 </div>
             </section>
+            <p id="cloudSaveStatus" class="empty-msg">Checking Supabase connection…</p>
+            <button id="importCatalogBtn" class="btn-primary" style="display:none;margin:12px 0;">Import existing storefront products</button>
 
             <div class="dashboard-grid">
                 <div class="stat-card"><h3>Categories</h3><div class="stat-number" id="statCategories">0</div></div>
@@ -563,6 +566,31 @@ input,select,textarea{font-family:inherit;}
 
                 <div class="form-row">
                     <div class="form-group">
+                        <label>Delivery estimate</label>
+                        <input type="text" id="productDelivery" value="1-5 min">
+                    </div>
+                    <div class="form-group">
+                        <label>Customer account field</label>
+                        <select id="productAccountType">
+                            <option value="email">Email address</option>
+                            <option value="uid">Game UID</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Requires game server ID</label>
+                        <div class="toggle"><input type="checkbox" id="productNeedsServer"><label for="productNeedsServer">Ask customer for server ID</label></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Packages (JSON)</label>
+                    <textarea id="productPackages" rows="4" placeholder='[{"id":"pkg1","label":"100 Diamonds","value":150}]'></textarea>
+                    <span class="row-slug">Each package needs an id, label, and value. Leave blank to use the product price.</span>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
                         <label>Status</label>
                         <select id="productStatus">
                             <option value="active">Active</option>
@@ -583,42 +611,13 @@ input,select,textarea{font-family:inherit;}
         </div>
     </div>
 
-    <!-- User Edit Modal -->
-    <div id="userEditModal" class="form-container hidden">
-        <div class="modal-overlay" onclick="hideUserModal()"></div>
-        <div class="modal-content">
-            <h3 id="userModalTitle">Edit User</h3>
-            <form id="userEditForm">
-                <div class="form-group"><label>Username</label><input type="text" id="editUsername" required></div>
-                <div class="form-group"><label>Email</label><input type="email" id="editEmail"></div>
-                <div class="form-group"><label>Password</label><input type="text" id="editPassword"></div>
-                <div class="form-actions">
-                    <button type="button" onclick="hideUserModal()" class="btn-secondary">Cancel</button>
-                    <button type="submit" class="btn-primary">Save User</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script>
-        (function(){
-            try {
-                const isAdmin = localStorage.getItem('isAdmin');
-                if (isAdmin !== '1') { window.location.href = 'login.html'; }
-            } catch (e) {
-                console.warn('Redirect check failed', e);
-                window.location.href = 'login.html';
-            }
-        })();
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="supabase-client.js"></script>
+    <script src="script.js"></script>
     <script>
 // ============ RS-BAZAR ADMIN PANEL ============
-// Data model note: this site has no server/backend, so localStorage plays
-// the role of the "database" here (same pattern the storefront already
-// uses for cart/orders). Categories are a single self-referencing table
-// (parent_id = null -> main category, parent_id = <id> -> sub-category),
-// which is what supports unlimited nesting. Products hold category_id +
-// subcategory_id as foreign keys into that same table.
+// The browser cache is only a working copy; Supabase and its RLS policies are authoritative.
 
 var LS = {
   categories: 'rsCategories',
@@ -638,7 +637,96 @@ function loadJSON(key, fallback) {
     return parsed === null || parsed === undefined ? fallback : parsed;
   } catch (e) { return fallback; }
 }
-function saveJSON(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
+var collectionWriteQueues = {};
+var adminProfileById = {};
+
+function setCloudStatus(message, failed) {
+  var status = document.getElementById('cloudSaveStatus');
+  if (!status) return;
+  status.textContent = message;
+  status.style.color = failed ? '#c1502e' : '';
+}
+
+function databaseOrder(order) {
+  return {
+    id: order.id,
+    user_id: order.user_id,
+    product_id: order.product_id,
+    package_id: order.package_id,
+    game_title: order.game_title || order.gameTitle,
+    pack_label: order.pack_label || order.packLabel,
+    uid: order.uid || '',
+    server_id: order.server_id || order.serverId || '',
+    quantity: Number(order.quantity) || 1,
+    price: Number(order.price) || 0,
+    total: Number(order.total) || 0,
+    payment_method: order.payment_method || order.paymentMethod,
+    payment_code: order.payment_code || order.paymentCode || '',
+    status: order.status || 'Pending'
+  };
+}
+
+function persistCollection(key, table, rows, oldRows) {
+  var previous = collectionWriteQueues[table] || Promise.resolve();
+  var operation = previous.then(async function () {
+    setCloudStatus('Saving changes to Supabase…', false);
+    var client = window.getSupabaseClient();
+    var records = table === 'orders' ? rows.map(databaseOrder) : rows;
+    var oldRecords = table === 'orders' ? oldRows.map(databaseOrder) : oldRows;
+    var oldById = {};
+    oldRecords.forEach(function (row) { oldById[row.id] = row; });
+    var changed = records.filter(function (row) {
+      return !oldById[row.id] || Object.keys(row).some(function (field) {
+        return JSON.stringify(row[field]) !== JSON.stringify(oldById[row.id][field]);
+      });
+    });
+    if (table === 'products') {
+      for (var i = 0; i < changed.length; i++) {
+        var product = changed[i];
+        var previousProduct = oldById[product.id];
+        var savedProduct;
+        if (previousProduct) {
+          var patch = {};
+          Object.keys(product).forEach(function (field) {
+            if (field !== 'id' && JSON.stringify(product[field]) !== JSON.stringify(previousProduct[field])) {
+              patch[field] = product[field];
+            }
+          });
+          savedProduct = await client.from(table).update(patch).eq('id', product.id);
+        } else {
+          savedProduct = await client.from(table).insert(product);
+        }
+        if (savedProduct.error) throw savedProduct.error;
+      }
+    } else if (changed.length) {
+      var saved = await client.from(table).upsert(changed, { onConflict: 'id' });
+      if (saved.error) throw saved.error;
+    }
+    var nextIds = records.map(function (row) { return row.id; });
+    var removedIds = oldRows.map(function (row) { return row.id; }).filter(function (id) { return nextIds.indexOf(id) === -1; });
+    if (removedIds.length) {
+      var removed = await client.from(table).delete().in('id', removedIds);
+      if (removed.error) throw removed.error;
+    }
+    setCloudStatus('Connected · all changes saved to Supabase.', false);
+    return true;
+  }).catch(function (error) {
+    setCloudStatus('Supabase save failed: ' + (error.message || 'unknown error'), true);
+    showToast('Cloud save failed. Check the Supabase status message.');
+    return false;
+  });
+  collectionWriteQueues[table] = operation;
+  return operation;
+}
+
+function saveJSON(key, value) {
+  var previous = loadJSON(key, []);
+  localStorage.setItem(key, JSON.stringify(value));
+  if (key === LS.categories) return persistCollection(key, 'categories', value, previous);
+  if (key === LS.products) return persistCollection(key, 'products', value, previous);
+  if (key === LS.orders) return persistCollection(key, 'orders', value, previous);
+  return Promise.resolve();
+}
 
 function uid(prefix) { return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
@@ -652,59 +740,20 @@ function nowISO() { return new Date().toISOString(); }
 
 // ---- Seed data (first run only) ----
 function ensureSeed() {
-  if (localStorage.getItem(LS.categories) === null) {
-    var cats = [];
-    function addTop(name, children) {
-      var topId = uid('cat');
-      cats.push({
-        id: topId, name: name, slug: slugify(name), image: '', description: '',
-        parent_id: null, status: 'active', sort_order: cats.filter(function (c) { return !c.parent_id; }).length,
-        created_at: nowISO(), updated_at: nowISO()
-      });
-      (children || []).forEach(function (childName, i) {
-        cats.push({
-          id: uid('cat'), name: childName, slug: slugify(childName), image: '', description: '',
-          parent_id: topId, status: 'active', sort_order: i,
-          created_at: nowISO(), updated_at: nowISO()
-        });
-      });
-      return topId;
-    }
-    var electronicsId = addTop('Electronics', ['Laptop', 'Desktop', 'Tablet', 'Mobile']);
-    addTop('Home Appliances', []);
-    var partsId = addTop('Computer Parts', ['RAM', 'SSD', 'HDD', 'Processor', 'Motherboard', 'Graphics Card']);
-    addTop('Accessories', ['Mouse', 'Keyboard', 'Webcam', 'USB Hub']);
-    addTop('Gaming', []);
-    addTop('Software', []);
-    saveJSON(LS.categories, cats);
-
-    if (localStorage.getItem(LS.products) === null) {
-      var laptopId = cats.filter(function (c) { return c.parent_id === electronicsId && c.name === 'Laptop'; })[0].id;
-      var ramId = cats.filter(function (c) { return c.parent_id === partsId && c.name === 'RAM'; })[0].id;
-      saveJSON(LS.products, [
-        { id: uid('prod'), name: 'Dell Inspiron', description: '15" laptop for work and everyday use.', price: 800, discount_price: null,
-          brand: 'Dell', stock: 20, sku: 'DELL-INS-15', image: '', category_id: electronicsId, subcategory_id: laptopId,
-          status: 'active', featured: false, created_at: nowISO(), updated_at: nowISO() },
-        { id: uid('prod'), name: 'Kingston Fury RAM', description: '16GB DDR4 desktop memory.', price: 75, discount_price: null,
-          brand: 'Kingston', stock: 15, sku: 'KING-FURY-16', image: '', category_id: partsId, subcategory_id: ramId,
-          status: 'active', featured: true, created_at: nowISO(), updated_at: nowISO() }
-      ]);
-    }
-  }
-  if (localStorage.getItem(LS.products) === null) saveJSON(LS.products, []);
   if (localStorage.getItem(LS.settings) === null) {
     saveJSON(LS.settings, {
       websiteActive: true, openingTime: '11:00', closingTime: '22:00',
       contactEmail: 'rsbazar47@gmail.com', contactPhone: '9813920517'
     });
   }
-  if (localStorage.getItem(LS.orders) === null) saveJSON(LS.orders, []);
-  if (localStorage.getItem(LS.users) === null) saveJSON(LS.users, []);
+  if (localStorage.getItem(LS.categories) === null) localStorage.setItem(LS.categories, '[]');
+  if (localStorage.getItem(LS.products) === null) localStorage.setItem(LS.products, '[]');
+  if (localStorage.getItem(LS.orders) === null) localStorage.setItem(LS.orders, '[]');
 }
 
 // ---- Category helpers ----
 function getCategories() { return loadJSON(LS.categories, []); }
-function saveCategories(arr) { saveJSON(LS.categories, arr); }
+function saveCategories(arr) { return saveJSON(LS.categories, arr); }
 function topCategories() {
   return getCategories().filter(function (c) { return !c.parent_id; }).sort(function (a, b) { return a.sort_order - b.sort_order; });
 }
@@ -724,7 +773,7 @@ function productCountFor(categoryId, isSub) {
 
 // ---- Product helpers ----
 function getProducts() { return loadJSON(LS.products, []); }
-function saveProducts(arr) { saveJSON(LS.products, arr); }
+function saveProducts(arr) { return saveJSON(LS.products, arr); }
 
 // ============================================================
 // TABS
@@ -1275,6 +1324,10 @@ function openProductForm(id) {
       document.getElementById('productSKU').value = p.sku || '';
       document.getElementById('productImage').value = p.image || '';
       document.getElementById('productDescription').value = p.description || '';
+      document.getElementById('productDelivery').value = p.delivery || '1-5 min';
+      document.getElementById('productAccountType').value = p.account_type || 'email';
+      document.getElementById('productNeedsServer').checked = !!p.needs_server;
+      document.getElementById('productPackages').value = JSON.stringify(p.packages || [], null, 2);
       document.getElementById('productStatus').value = p.status || 'active';
       document.getElementById('productFeatured').checked = !!p.featured;
       populateProductMainCategorySelect(p.category_id);
@@ -1303,6 +1356,11 @@ function handleProductFormSubmit(e) {
   var sku = document.getElementById('productSKU').value.trim();
   var image = document.getElementById('productImage').value.trim();
   var description = document.getElementById('productDescription').value.trim();
+  var delivery = document.getElementById('productDelivery').value.trim() || '1-5 min';
+  var accountType = document.getElementById('productAccountType').value;
+  var needsServer = document.getElementById('productNeedsServer').checked;
+  var packagesText = document.getElementById('productPackages').value.trim();
+  var packages = [];
   var status = document.getElementById('productStatus').value;
   var featured = document.getElementById('productFeatured').checked;
 
@@ -1313,6 +1371,19 @@ function handleProductFormSubmit(e) {
     setFieldError('productSubCategory', 'This category has sub-categories — please choose one.'); valid = false;
   }
   if (isNaN(price) || price < 0) { setFieldError('productPrice', 'Enter a valid price.'); valid = false; }
+  if (packagesText) {
+    try {
+      packages = JSON.parse(packagesText);
+      if (!Array.isArray(packages) || packages.some(function (pkg) {
+        return !pkg || !pkg.id || !pkg.label || !Number.isFinite(Number(pkg.value)) || Number(pkg.value) < 0;
+      })) throw new Error('Invalid packages');
+    } catch (error) {
+      showToast('Packages must be valid JSON with id, label, and numeric value fields.');
+      valid = false;
+    }
+  } else {
+    packages = [{ id: 'default', label: '1 item', value: (discount !== null && !isNaN(discount)) ? discount : price }];
+  }
   if (!valid) return;
 
   var products = getProducts();
@@ -1320,7 +1391,8 @@ function handleProductFormSubmit(e) {
     name: name, description: description, price: price, discount_price: (discount !== null && !isNaN(discount)) ? discount : null,
     brand: brand, stock: isNaN(stock) ? 0 : stock, sku: sku, image: image,
     category_id: mainCategoryId, subcategory_id: subCategoryId || '',
-    status: status, featured: featured, updated_at: nowISO()
+    status: status, featured: featured, delivery: delivery, account_type: accountType, needs_server: needsServer,
+    packages: packages, updated_at: nowISO()
   };
 
   if (editingId) {
@@ -1357,7 +1429,7 @@ function renderOrders() {
     var status = o.status || 'Pending';
     return '<div class="order-row" data-order-id="' + escapeAttr(o.id) + '">' +
       '<div><span class="label">Product</span><span class="value">' + escapeHTML(o.gameTitle || '') + '<br>' + escapeHTML(o.packLabel || '') + '</span></div>' +
-      '<div><span class="label">UID</span><span class="value">' + escapeHTML(o.uid || '') + '</span></div>' +
+      '<div><span class="label">Account / UID</span><span class="value">' + escapeHTML(o.uid || '') + '</span></div>' +
       '<div><span class="label">Qty</span><span class="value">' + (o.quantity || 1) + '</span></div>' +
       '<div><span class="label">Total</span><span class="value order-price">Rs' + (o.total || 0) + '</span></div>' +
       '<div><span class="label">User / Code</span><span class="value">' + escapeHTML(o.username || '') + ' · ' + escapeHTML(o.esewaCode || '') + '</span></div>' +
@@ -1414,45 +1486,38 @@ function renderUsers() {
   var wrap = document.getElementById('usersList');
   if (users.length === 0) { wrap.innerHTML = '<p class="empty-msg">No stored accounts found.</p>'; return; }
 
-  var rows = users.map(function (u, i) {
+  var rows = users.map(function (u) {
     return '<tr>' +
       '<td>' + escapeHTML(u.username || '') + (u.isAdmin ? ' <span class="admin-badge">Admin</span>' : '') + '</td>' +
       '<td>' + escapeHTML(u.email || '—') + '</td>' +
-      '<td><button onclick="openUserModal(' + i + ')">Edit</button><button class="del-user" onclick="deleteUser(' + i + ')">Delete</button></td>' +
+      '<td><button onclick="toggleUserAdmin(\'' + escapeAttr(u.id) + '\')">' + (u.isAdmin ? 'Remove admin' : 'Make admin') + '</button></td>' +
       '</tr>';
   }).join('');
-  wrap.innerHTML = '<table class="users-table"><thead><tr><th>Username</th><th>Email</th><th>Actions</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  wrap.innerHTML = '<p class="row-slug">Passwords are managed by Supabase Auth and are never displayed here.</p><table class="users-table"><thead><tr><th>Username</th><th>Email</th><th>Role</th></tr></thead><tbody>' + rows + '</tbody></table>';
 }
-function openUserModal(index) {
-  var u = loadJSON(LS.users, [])[index];
-  if (!u) return;
-  document.getElementById('userEditForm').setAttribute('data-index', index);
-  document.getElementById('editUsername').value = u.username || '';
-  document.getElementById('editEmail').value = u.email || '';
-  document.getElementById('editPassword').value = u.password || '';
-  document.getElementById('userEditModal').classList.remove('hidden');
-}
-function hideUserModal() { document.getElementById('userEditModal').classList.add('hidden'); }
-function handleUserFormSubmit(e) {
-  e.preventDefault();
-  var index = parseInt(document.getElementById('userEditForm').getAttribute('data-index'), 10);
-  var users = loadJSON(LS.users, []);
-  if (isNaN(index) || !users[index]) return;
-  users[index] = Object.assign({}, users[index], {
-    username: document.getElementById('editUsername').value.trim(),
-    email: document.getElementById('editEmail').value.trim(),
-    password: document.getElementById('editPassword').value
+async function loadAdminUsers() {
+  var client = window.getSupabaseClient();
+  var result = await client.from('profiles').select('id,username,email,is_admin').order('created_at', { ascending: true });
+  if (result.error) throw result.error;
+  var users = result.data.map(function (profile) {
+    return { id: profile.id, username: profile.username, email: profile.email, isAdmin: profile.is_admin };
   });
-  saveJSON(LS.users, users);
-  hideUserModal();
+  localStorage.setItem(LS.users, JSON.stringify(users));
   renderUsers();
 }
-function deleteUser(index) {
-  if (!confirm('Delete this account?')) return;
-  var users = loadJSON(LS.users, []);
-  users.splice(index, 1);
-  saveJSON(LS.users, users);
-  renderUsers();
+async function toggleUserAdmin(userId) {
+  var current = loadJSON(LS.users, []).filter(function (user) { return user.id === userId; })[0];
+  if (!current) return;
+  if (!confirm((current.isAdmin ? 'Remove admin access from ' : 'Grant admin access to ') + current.username + '?')) return;
+  try {
+    var client = window.getSupabaseClient();
+    var result = await client.from('profiles').update({ is_admin: !current.isAdmin }).eq('id', userId);
+    if (result.error) throw result.error;
+    await loadAdminUsers();
+    showToast('User role updated.');
+  } catch (error) {
+    showToast('Could not update role: ' + error.message);
+  }
 }
 function exportUsersCSV() {
   var users = loadJSON(LS.users, []);
@@ -1470,15 +1535,15 @@ function exportAllData() {
     settings: loadJSON(LS.settings, {}), users: loadJSON(LS.users, [])
   }, null, 2), 'application/json');
 }
-function clearAllData() {
-  if (!confirm('This wipes categories, products, orders and settings back to defaults. Continue?')) return;
-  localStorage.removeItem(LS.categories);
-  localStorage.removeItem(LS.products);
-  localStorage.removeItem(LS.orders);
+async function clearAllData() {
+  if (!confirm('This permanently deletes all Supabase categories, products, and orders, and resets local settings. Continue?')) return;
+  var ordersSaved = await saveJSON(LS.orders, []);
+  var productsSaved = await saveJSON(LS.products, []);
+  var categoriesSaved = await saveJSON(LS.categories, []);
   localStorage.removeItem(LS.settings);
   ensureSeed();
   renderTab('dashboard');
-  showToast('All data cleared.');
+  if (ordersSaved && productsSaved && categoriesSaved) showToast('Catalog and orders cleared.');
 }
 function downloadFile(filename, content, mime) {
   var blob = new Blob([content], { type: mime });
@@ -1518,14 +1583,146 @@ function showToast(msg) {
   setTimeout(function () { n.remove(); }, 2500);
 }
 
+async function importBuiltinCatalog() {
+  if (getProducts().length) {
+    showToast('Products already exist; import is available only for an empty catalog.');
+    return;
+  }
+  if (!confirm('Import the current storefront categories and products into Supabase? Review imported stock levels in the Products tab before taking orders.')) return;
+
+  var categories = getCategories();
+  var subIds = {};
+  var products = [];
+  var mainOrder = topCategories().length;
+  Object.keys(BUILTIN_GAME_DATA).forEach(function (productId) {
+    var game = BUILTIN_GAME_DATA[productId];
+    var mainSlug = slugify(game.mainCategory);
+    var main = categories.filter(function (category) {
+      return !category.parent_id && category.slug === mainSlug;
+    })[0];
+    if (!main) {
+      main = {
+        id: uid('cat'), name: game.mainCategoryLabel || game.mainCategory,
+        slug: mainSlug, image: '', description: '', parent_id: null,
+        status: 'active', sort_order: mainOrder++, created_at: nowISO(), updated_at: nowISO()
+      };
+      categories.push(main);
+    }
+    var subKey = main.id + ':' + game.subCategory;
+    var sub = subIds[subKey] || categories.filter(function (category) {
+      return category.parent_id === main.id && category.name === game.subCategory;
+    })[0];
+    if (!sub) {
+      sub = {
+        id: uid('cat'), name: game.subCategory, slug: slugify(game.subCategory),
+        image: '', description: '', parent_id: main.id, status: 'active',
+        sort_order: categories.filter(function (category) { return category.parent_id === main.id; }).length,
+        created_at: nowISO(), updated_at: nowISO()
+      };
+      categories.push(sub);
+    }
+    subIds[subKey] = sub;
+    products.push({
+      id: productId,
+      name: game.title,
+      description: game.description || '',
+      price: Math.min.apply(null, game.packages.map(function (pkg) { return Number(pkg.value); })),
+      discount_price: null,
+      brand: '',
+      stock: 999999,
+      sku: productId,
+      image: game.image || '',
+      category_id: main.id,
+      subcategory_id: sub.id,
+      status: 'active',
+      featured: false,
+      delivery: game.delivery || '1-5 min',
+      account_type: game.accountType || (game.mainCategory === 'games' ? 'uid' : 'email'),
+      needs_server: Boolean(game.needsServer),
+      packages: game.packages.map(function (pkg) {
+        return { id: String(pkg.id), label: pkg.label, value: Number(pkg.value) };
+      }),
+      created_at: nowISO(),
+      updated_at: nowISO()
+    });
+  });
+
+  if (!await saveCategories(categories)) throw new Error('Could not save categories; check the Supabase status above.');
+  if (!await saveProducts(products)) throw new Error('Could not save products; check the Supabase status above.');
+  document.getElementById('importCatalogBtn').style.display = 'none';
+  renderDashboard();
+  showToast('Storefront catalog imported.');
+}
+
 // ============================================================
 // INIT
 // ============================================================
-document.addEventListener('DOMContentLoaded', function () {
-  ensureSeed();
+document.addEventListener('DOMContentLoaded', async function () {
+  var loadError = document.getElementById('adminLoadError');
+  try {
+    var client = window.getSupabaseClient();
+    var auth = await client.auth.getUser();
+    if (auth.error) throw auth.error;
+    if (!auth.data.user) {
+      window.location.href = 'login.html';
+      return;
+    }
 
-  document.getElementById('adminDashboard').classList.remove('hidden');
-  document.getElementById('adminName').textContent = localStorage.getItem('loggedInUser') || 'Admin';
+    var profile = await client.from('profiles').select('id,username,is_admin').eq('id', auth.data.user.id).single();
+    if (profile.error) throw profile.error;
+    if (!profile.data.is_admin) {
+      loadError.textContent = 'This account does not have administrator access.';
+      return;
+    }
+
+    var results = await Promise.all([
+      client.from('categories').select('*').order('sort_order'),
+      client.from('products').select('*').order('created_at', { ascending: false }),
+      client.from('orders').select('*').order('created_at', { ascending: false }),
+      client.from('profiles').select('id,username,email,is_admin').order('created_at', { ascending: true })
+    ]);
+    results.forEach(function (result) { if (result.error) throw result.error; });
+    localStorage.setItem(LS.categories, JSON.stringify(results[0].data || []));
+    localStorage.setItem(LS.products, JSON.stringify(results[1].data || []));
+    adminProfileById = {};
+    (results[3].data || []).forEach(function (row) { adminProfileById[row.id] = row.username || row.email; });
+    localStorage.setItem(LS.users, JSON.stringify((results[3].data || []).map(function (row) {
+      return { id: row.id, username: row.username, email: row.email, isAdmin: row.is_admin };
+    })));
+    localStorage.setItem(LS.orders, JSON.stringify((results[2].data || []).map(function (row) {
+      return {
+        id: row.id,
+        user_id: row.user_id,
+        product_id: row.product_id,
+        package_id: row.package_id,
+        gameTitle: row.game_title,
+        packLabel: row.pack_label,
+        uid: row.uid,
+        serverId: row.server_id,
+        quantity: row.quantity,
+        price: Number(row.price),
+        total: Number(row.total),
+        paymentMethod: row.payment_method,
+        paymentCode: row.payment_code,
+        esewaCode: row.payment_method === 'esewa' ? row.payment_code : '',
+        timestamp: row.created_at,
+        status: row.status,
+        username: adminProfileById[row.user_id] || row.user_id
+      };
+    })));
+
+    ensureSeed();
+    document.getElementById('adminDashboard').classList.remove('hidden');
+    document.getElementById('adminName').textContent = profile.data.username || auth.data.user.email;
+    loadError.style.display = 'none';
+    setCloudStatus('Connected · changes sync to Supabase.', false);
+      document.getElementById('importCatalogBtn').style.display = results[1].data.length ? 'none' : 'inline-block';
+  } catch (error) {
+    loadError.textContent = 'Could not load the admin panel: ' + (error.message || 'unknown error') +
+      ' Check the Supabase key, schema, and RLS setup.';
+    setCloudStatus('Supabase connection failed.', true);
+    return;
+  }
 
   initTabs();
   renderDashboard();
@@ -1575,19 +1772,30 @@ document.addEventListener('DOMContentLoaded', function () {
   // Orders / settings / users
   document.getElementById('clearOrdersBtn').addEventListener('click', clearAllOrders);
   document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
-  document.getElementById('refreshUsersBtn').addEventListener('click', renderUsers);
   document.getElementById('exportUsersBtn').addEventListener('click', exportUsersCSV);
-  document.getElementById('userEditForm').addEventListener('submit', handleUserFormSubmit);
 
   // Dashboard actions
   document.getElementById('exportDataBtn').addEventListener('click', exportAllData);
   document.getElementById('clearAllDataBtn').addEventListener('click', clearAllData);
+  document.getElementById('importCatalogBtn').addEventListener('click', function () {
+    importBuiltinCatalog().catch(function (error) {
+      setCloudStatus('Catalog import failed: ' + error.message, true);
+    });
+  });
 
   document.getElementById('logoutBtn').addEventListener('click', function () {
-    localStorage.removeItem('isAdmin');
-    localStorage.removeItem('loggedInUser');
-    window.location.href = 'login.html';
+    window.getSupabaseClient().auth.signOut().then(function (result) {
+      if (result.error) throw result.error;
+      window.location.href = 'login.html';
+    }).catch(function (error) {
+      showToast('Could not sign out: ' + error.message);
+    });
   });
+
+  document.getElementById('refreshUsersBtn').addEventListener('click', function () {
+    loadAdminUsers().catch(function (error) { showToast('Could not load accounts: ' + error.message); });
+  });
+  renderUsers();
 });
 
 </script>

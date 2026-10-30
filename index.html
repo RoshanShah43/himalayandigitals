@@ -17,8 +17,6 @@
 </head>
 
 <body>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-
 <header>
     <div class="container header-inner">
         <div class="logo"><img src="hdl.png" alt="Himalayan Digitals" class="logo-img"></div>
@@ -30,20 +28,13 @@
                 <span class="cart" aria-hidden="true"></span>
                 <span class="cart-badge" id="cartBadge">0</span>
             </div>
-
-            <div id="loginBtn" class="btn-login" style="display: block;">
-                <a href="login.html">Login</a>
-            </div>
-            <div id="profileSection" class="profile-section" style="display: none;">
-                <div class="profile-dropdown">
-                    <button class="profile-btn" id="profileBtn">
-                        <span id="profileUsername">User</span>
-                        <span class="profile-arrow">▼</span>
-                    </button>
-                    <div class="profile-menu" id="profileMenu">
-                        <a href="admin.html" id="adminPanelLink" style="display:none;">Admin Panel</a>
-                        <a href="#" id="logoutBtn">Logout</a>
-                    </div>
+            <a href="login.html" id="loginLink">Login / Sign up</a>
+            <div id="accountMenu" class="profile-dropdown" style="display:none;">
+                <button class="profile-btn" id="accountButton"><span id="accountName"></span> ▼</button>
+                <div class="profile-menu">
+                    <a href="admin.html" id="adminLink" style="display:none;">Admin Panel</a>
+                    <a href="profile.html">My Orders</a>
+                    <a href="#" id="signOutLink">Sign out</a>
                 </div>
             </div>
         </nav>
@@ -160,11 +151,11 @@
                 </div>
 
                 <div class="quantity-section">
-                    <label>Quantity</label>
+                    <label id="quantityLabel">Quantity</label>
                     <div class="quantity-control">
-                        <button class="qty-btn" id="qtyDecrement" onclick="var q=document.getElementById('quantity');if(q.value>1)q.value=parseInt(q.value)-1;">−</button>
+                        <button class="qty-btn" id="qtyDecrement" onclick="decrementQuantity()">−</button>
                         <input type="number" id="quantity" value="1" min="1" readonly>
-                        <button class="qty-btn" id="qtyIncrement" onclick="var q=document.getElementById('quantity');q.value=parseInt(q.value)+1;">+</button>
+                        <button class="qty-btn" id="qtyIncrement" onclick="incrementQuantity()">+</button>
                     </div>
                 </div>
 
@@ -299,51 +290,9 @@
 
 <div class="notification-container"></div>
 
-<!-- Admin Login Modal -->
-<div id="siteLoginModal" class="modal" aria-hidden="true">
-    <div class="modal-content" role="dialog" aria-modal="true">
-        <button class="modal-close" id="siteLoginClose" aria-label="Close">×</button>
-        <h3>Admin Login</h3>
-        <form id="siteLoginForm">
-            <div style="margin-bottom:10px">
-                <label for="siteUsername">Username</label>
-                <input id="siteUsername" type="text" placeholder="admin" style="width:100%;padding:8px;margin-top:6px;border:1px solid var(--border);border-radius:6px;background:var(--bg-elevate);color:var(--text);">
-            </div>
-            <div style="margin-bottom:12px">
-                <label for="sitePassword">Password</label>
-                <input id="sitePassword" type="password" placeholder="admin123" style="width:100%;padding:8px;margin-top:6px;border:1px solid var(--border);border-radius:6px;background:var(--bg-elevate);color:var(--text);">
-            </div>
-            <div style="display:flex;gap:8px;justify-content:flex-end">
-                <button type="submit" class="buy-btn">Login</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- User Login Modal -->
-<div id="userLoginModal" class="modal" aria-hidden="true">
-    <div class="modal-content" role="dialog" aria-modal="true">
-        <button class="modal-close" id="userLoginClose" aria-label="Close">×</button>
-        <h3>User Login</h3>
-        <form id="userLoginForm">
-            <div style="margin-bottom:10px">
-                <label for="userUsername">Username or Email</label>
-                <input id="userUsername" type="text" placeholder="Enter username or email" style="width:100%;padding:8px;margin-top:6px;border:1px solid var(--border);border-radius:6px;background:var(--bg-elevate);color:var(--text);">
-            </div>
-            <div style="margin-bottom:12px">
-                <label for="userPassword">Password</label>
-                <input id="userPassword" type="password" placeholder="Enter password" style="width:100%;padding:8px;margin-top:6px;border:1px solid var(--border);border-radius:6px;background:var(--bg-elevate);color:var(--text);">
-            </div>
-            <div style="display:flex;gap:8px;justify-content:flex-end">
-                <button type="submit" class="buy-btn">Login</button>
-            </div>
-        </form>
-        <div style="margin-top:10px;text-align:center">
-            <a href="login.html" style="color:var(--accent-2);text-decoration:none">Full Login/Sign Up Page</a>
-        </div>
-    </div>
-</div>
-
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="supabase-client.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
