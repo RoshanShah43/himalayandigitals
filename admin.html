@@ -680,23 +680,23 @@ function persistCollection(key, table, rows, oldRows) {
         return JSON.stringify(row[field]) !== JSON.stringify(oldById[row.id][field]);
       });
     });
-    if (table === 'products') {
+    if (table === 'products' || table === 'orders') {
       for (var i = 0; i < changed.length; i++) {
-        var product = changed[i];
-        var previousProduct = oldById[product.id];
-        var savedProduct;
-        if (previousProduct) {
+        var record = changed[i];
+        var previousRecord = oldById[record.id];
+        var savedRecord;
+        if (previousRecord) {
           var patch = {};
-          Object.keys(product).forEach(function (field) {
-            if (field !== 'id' && JSON.stringify(product[field]) !== JSON.stringify(previousProduct[field])) {
-              patch[field] = product[field];
+          Object.keys(record).forEach(function (field) {
+            if (field !== 'id' && JSON.stringify(record[field]) !== JSON.stringify(previousRecord[field])) {
+              patch[field] = record[field];
             }
           });
-          savedProduct = await client.from(table).update(patch).eq('id', product.id);
+          savedRecord = await client.from(table).update(patch).eq('id', record.id);
         } else {
-          savedProduct = await client.from(table).insert(product);
+          savedRecord = await client.from(table).insert(record);
         }
-        if (savedProduct.error) throw savedProduct.error;
+        if (savedRecord.error) throw savedRecord.error;
       }
     } else if (changed.length) {
       var saved = await client.from(table).upsert(changed, { onConflict: 'id' });
