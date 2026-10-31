@@ -184,9 +184,90 @@ var activeCategory = 'all';
 var activeSubcat = 'all';
 var catalogReady = false;
 var appliedCoupon = null;
+var DEFAULT_SITE_SETTINGS = {
+  websiteActive: true,
+  openingTime: '11:00',
+  closingTime: '22:00',
+  contactEmail: 'rsbazar47@gmail.com',
+  contactPhone: '9813920517'
+};
+var activeSiteSettings = DEFAULT_SITE_SETTINGS;
 
 var cart = [];
 try { cart = JSON.parse(localStorage.getItem('cart')) || []; } catch (e) { cart = []; }
+
+function formatStoreTime(value) {
+  var match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(value || ''));
+  if (!match) return null;
+  var hour = Number(match[1]);
+  var minute = match[2];
+  return ((hour % 12) || 12) + ':' + minute + (hour < 12 ? ' AM' : ' PM');
+}
+
+function isStoreOpen(settings) {
+  if (!settings.websiteActive) return false;
+  var opening = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(settings.openingTime || ''));
+  var closing = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(settings.closingTime || ''));
+  if (!opening || !closing) return false;
+
+  var openingMinutes = Number(opening[1]) * 60 + Number(opening[2]);
+  var closingMinutes = Number(closing[1]) * 60 + Number(closing[2]);
+  var now = new Date();
+  var currentMinutes = now.getHours() * 60 + now.getMinutes();
+  if (openingMinutes === closingMinutes) return false;
+  if (openingMinutes < closingMinutes) {
+    return currentMinutes >= openingMinutes && currentMinutes < closingMinutes;
+  }
+  return currentMinutes >= openingMinutes || currentMinutes < closingMinutes;
+}
+
+function renderSiteSettings(settings) {
+  activeSiteSettings = settings;
+  var status = document.getElementById('storeStatus');
+  var hours = document.getElementById('storeHours');
+  var helpline = document.getElementById('storeHelpline');
+  var emailLink = document.getElementById('contactEmailLink');
+  var phoneLink = document.getElementById('contactPhoneLink');
+  var opening = formatStoreTime(settings.openingTime);
+  var closing = formatStoreTime(settings.closingTime);
+  var open = isStoreOpen(settings);
+
+  if (status) {
+    status.textContent = (open ? '🟢 ' : '🔴 ') + (open ? 'OPEN NOW' : 'CLOSED NOW');
+    status.classList.toggle('closed', !open);
+  }
+  if (hours) hours.textContent = opening && closing ? '📱 ' + opening + ' - ' + closing : '📱 Hours not set';
+  if (helpline) helpline.textContent = settings.contactPhone ? '📞 Helpline: ' + settings.contactPhone : '';
+  if (emailLink) {
+    emailLink.textContent = settings.contactEmail || 'Email not set';
+    emailLink.href = settings.contactEmail ? 'mailto:' + settings.contactEmail : '#contact';
+  }
+  if (phoneLink) {
+    phoneLink.textContent = settings.contactPhone ? 'Helpline: ' + settings.contactPhone : 'Phone not set';
+    phoneLink.href = settings.contactPhone ? 'tel:' + settings.contactPhone.replace(/[^\d+]/g, '') : '#contact';
+  }
+}
+
+async function loadSiteSettings() {
+  try {
+    var client = window.getSupabaseClient();
+    var result = await client.from('site_settings').select('settings').eq('id', 'storefront').maybeSingle();
+    if (result.error) throw result.error;
+    var settings = result.data && result.data.settings ? result.data.settings : DEFAULT_SITE_SETTINGS;
+    if (result.data && result.data.settings) {
+      localStorage.setItem('siteSettings', JSON.stringify(settings));
+    }
+    renderSiteSettings(settings);
+  } catch (error) {
+    console.error('Unable to load storefront settings from Supabase.', error);
+    var cachedSettings;
+    try { cachedSettings = JSON.parse(localStorage.getItem('siteSettings') || 'null'); } catch (cacheError) {
+      console.error('Unable to read cached storefront settings.', cacheError);
+    }
+    renderSiteSettings(cachedSettings || DEFAULT_SITE_SETTINGS);
+    showNotification('Store hours and contact settings could not be refreshed.');
+  }
+}
 
 function categorySlug(value) {
   return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -229,7 +310,7 @@ async function loadStoreCatalog() {
     var client = window.getSupabaseClient();
     var results = await Promise.all([
       client.from('categories').select('id,name,slug,parent_id,status,sort_order').eq('status', 'active').order('sort_order'),
-      client.from('products').select('id,name,description,price,discount_price,image,category_id,subcategory_id,status,delivery,account_type,needs_server,packages,stock,featured').eq('status', 'active')
+      client.from('products').select('id,name,description,price,discount_price,image,category_id,subcategory_id,status,delivery,account_type,needs_server,pricing_mode,min_quantity,max_quantity,packages,stock,featured').eq('status', 'active')
     ]);
     if (results[0].error) throw results[0].error;
     if (results[1].error) throw results[1].error;
@@ -255,6 +336,9 @@ async function loadStoreCatalog() {
         description: product.description || '',
         accountType: product.account_type || (main.slug === 'games' ? 'uid' : 'email'),
         needsServer: Boolean(product.needs_server),
+        pricingMode: product.pricing_mode || 'fixed',
+        minQuantity: Number(product.min_quantity) || 1,
+        maxQuantity: Number(product.max_quantity) || Number.MAX_SAFE_INTEGER,
         packages: packages.map(function (pkg, index) {
           return {
             id: String(pkg.id || ('package-' + index)),
@@ -428,7 +512,7 @@ function renderProducts() {
     priceLabel.textContent = 'From';
     var price = document.createElement('span');
     price.className = 'card-price';
-    price.textContent = 'Rs' + formatMoney(minPrice);
+    price.textContent = 'Rs' + formatMoney(minPrice) + (g.pricingMode === 'per_1000' ? ' / 1,000' : '');
     priceRow.appendChild(priceLabel);
     priceRow.appendChild(price);
     card.appendChild(ribbon);
@@ -470,6 +554,14 @@ function openProductModal(gameId) {
   document.getElementById('quantity').max = '';
   document.getElementById('quantity').value = 1;
   document.getElementById('quantityLabel').textContent = 'Quantity';
+  if (game.pricingMode === 'per_1000') {
+    var quantityInput = document.getElementById('quantity');
+    quantityInput.readOnly = false;
+    quantityInput.min = game.minQuantity;
+    quantityInput.max = game.maxQuantity;
+    quantityInput.value = game.minQuantity;
+    document.getElementById('quantityLabel').textContent = 'Quantity (' + game.minQuantity + '–' + game.maxQuantity + ')';
+  }
 
   var pkgGrid = document.getElementById('packagesGrid');
   pkgGrid.innerHTML = '';
@@ -485,18 +577,19 @@ function openProductModal(gameId) {
     packageName.textContent = pkg.label;
     var packagePrice = document.createElement('div');
     packagePrice.className = 'package-price';
-    packagePrice.textContent = 'Rs' + formatMoney(pkg.value);
+    packagePrice.textContent = 'Rs' + formatMoney(pkg.value) + (game.pricingMode === 'per_1000' ? ' / 1,000' : '');
     div.appendChild(packageName);
     div.appendChild(packagePrice);
     div.onclick = function () {
       pkgGrid.querySelectorAll('.package-option').forEach(function (el) { el.classList.remove('selected'); });
       div.classList.add('selected');
+      updateQuantityPricePreview();
     };
     pkgGrid.appendChild(div);
   });
-
   var modal = document.getElementById('gameShoppingModal');
   modal.setAttribute('data-game-id', gameId);
+  updateQuantityPricePreview();
   modal.style.display = 'flex';
   modal.classList.add('open');
   document.body.classList.add('modal-open');
@@ -516,7 +609,12 @@ function formatMoney(value) {
 }
 
 function cartItemTotal(item) {
-  return Number(item.price) * Number(item.quantity);
+  var total = Number(item.price) * Number(item.quantity);
+  return roundMoney(item.pricingMode === 'per_1000' ? total / 1000 : total);
+}
+
+function roundMoney(value) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
 function couponDiscountForItem(item, percentOff) {
@@ -531,7 +629,9 @@ function updateCheckoutSummary() {
   cart.forEach(function (item) {
     var itemTotal = cartItemTotal(item);
     subtotal += itemTotal;
-    html += '<div class="checkout-item"><span>' + escapeHTML(item.gameTitle) + ' - ' + escapeHTML(item.packageLabel) +
+    var packageDescription = item.gameTitle + ' - ' + item.packageLabel +
+      (item.pricingMode === 'per_1000' ? ' (' + item.quantity + ' units)' : '');
+    html += '<div class="checkout-item"><span>' + escapeHTML(packageDescription) +
       '</span><span>Rs' + formatMoney(itemTotal) + '</span></div>';
     if (appliedCoupon) discount += couponDiscountForItem(item, appliedCoupon.percentOff);
   });
@@ -600,13 +700,33 @@ function generateCheckoutId() {
 
 function setQuantity(value) {
   var input = document.getElementById('quantity');
-  input.value = Math.max(1, parseInt(value, 10) || 1);
+  var minimum = Number(input.min) || 1;
+  var maximum = Number(input.max) || Number.MAX_SAFE_INTEGER;
+  input.value = Math.min(maximum, Math.max(minimum, parseInt(value, 10) || minimum));
+  updateQuantityPricePreview();
+}
+
+function updateQuantityPricePreview() {
+  var preview = document.getElementById('quantityPricePreview');
+  if (!preview) return;
+  var modal = document.getElementById('gameShoppingModal');
+  var game = modal && GAME_DATA[modal.getAttribute('data-game-id')];
+  var selected = document.querySelector('#packagesGrid .package-option.selected');
+  if (!game || !selected) {
+    preview.textContent = '';
+    return;
+  }
+  var quantity = Number(document.getElementById('quantity').value) || 1;
+  var price = Number(selected.getAttribute('data-price')) || 0;
+  var total = roundMoney(game.pricingMode === 'per_1000' ? price * quantity / 1000 : price * quantity);
+  preview.textContent = 'Estimated total: Rs' + formatMoney(total);
 }
 
 function decrementQuantity() {
   var input = document.getElementById('quantity');
   if (input.readOnly) {
     if (Number(input.value) > 1) input.value = Number(input.value) - 1;
+    updateQuantityPricePreview();
     return;
   }
   setQuantity(Number(input.value) - 1);
@@ -616,6 +736,7 @@ function incrementQuantity() {
   var input = document.getElementById('quantity');
   if (input.readOnly) {
     input.value = Number(input.value) + 1;
+    updateQuantityPricePreview();
     return;
   }
   setQuantity(Number(input.value) + 1);
@@ -645,7 +766,11 @@ function handleAddToCart() {
   var quantityValue = document.getElementById('quantity').value;
   var qty = parseInt(quantityValue, 10) || 1;
   var selected = document.querySelector('#packagesGrid .package-option.selected');
-  if (game.stock < 1) { alert('This product is currently out of stock.'); return; }
+  if (game.pricingMode !== 'per_1000' && game.stock < 1) { alert('This product is currently out of stock.'); return; }
+  if (qty < game.minQuantity || qty > game.maxQuantity) {
+    alert('Please enter a quantity between ' + game.minQuantity + ' and ' + game.maxQuantity + '.');
+    return;
+  }
 
   if (isGameProduct) {
     accountId = document.getElementById('accountUID').value.trim();
@@ -670,6 +795,7 @@ function handleAddToCart() {
     packageId: selected.getAttribute('data-id'),
     price: Number(selected.getAttribute('data-price')),
     quantity: qty,
+    pricingMode: game.pricingMode,
     accountUID: accountId,
     serverId: serverId,
     accountType: game.accountType
@@ -710,7 +836,8 @@ function renderCartItems() {
     sum += itemTotal;
     html += '<div class="cart-item"><img src="' + escapeHTML(item.gameImage) + '" class="cart-item-image">' +
       '<div class="cart-item-details"><div class="cart-item-title">' + escapeHTML(item.gameTitle) + '</div>' +
-      '<div class="cart-item-package">' + escapeHTML(item.packageLabel) + '</div>' +
+      '<div class="cart-item-package">' + escapeHTML(item.packageLabel) +
+      (item.pricingMode === 'per_1000' ? ' · ' + item.quantity + ' units' : '') + '</div>' +
       '<div class="cart-item-price">Rs' + formatMoney(itemTotal) + '</div></div>' +
       '<button class="cart-item-remove" onclick="removeFromCart(' + item.id + ')">×</button></div>';
   });
@@ -893,6 +1020,17 @@ function showNotification(msg) {
 // ---- Init ----
 document.addEventListener('DOMContentLoaded', function () {
   if (!document.getElementById('categoryRail')) return;
+  loadSiteSettings();
+  window.addEventListener('storage', function (event) {
+    if (event.key !== 'siteSettings') return;
+    try {
+      renderSiteSettings(JSON.parse(event.newValue || 'null') || DEFAULT_SITE_SETTINGS);
+    } catch (error) {
+      console.error('Unable to apply updated storefront settings.', error);
+    }
+  });
+  window.addEventListener('focus', loadSiteSettings);
+  window.setInterval(function () { renderSiteSettings(activeSiteSettings); }, 60 * 1000);
   loadStoreCatalog();
   updateAccountMenu();
   updateCartBadge();

@@ -2,6 +2,8 @@
 
 > SMM storefront and provider integrations are currently disabled. These steps require restoring a backend and are not active in the static-only deployment.
 
+For simple SMM-style listings in the current storefront catalog, use **Admin Panel → Products → Pricing type → Price per 1,000 units**. This calculates customer pricing only; it does not submit orders to an SMM provider.
+
 ## Database
 
 Run [`smm_schema.sql`](./smm_schema.sql) in the Supabase SQL editor. The Flask server uses the `smm_services` and `smm_orders` tables; the service-role Supabase key must remain server-side.

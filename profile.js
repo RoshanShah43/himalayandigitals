@@ -55,7 +55,8 @@ document.addEventListener('DOMContentLoaded', async function () {
         ['Server ID', order.server_id || '—'],
         ['Quantity', String(order.quantity)],
         ['Total', 'Rs' + order.total],
-        ['Payment', order.payment_method.toUpperCase()]
+        ['Payment', order.payment_method.toUpperCase()],
+        ['Payment code', order.payment_code || 'Not available']
       ];
       if (order.coupon_code) {
         detailEntries.splice(4, 0, ['Coupon', order.coupon_code + ' · -Rs' + order.discount_amount]);

@@ -45,8 +45,9 @@ header{
   backdrop-filter:blur(10px);
   border-bottom:1px solid var(--border);
 }
-.header-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;}
-.logo-img{height:36px;display:block;}
+.header-inner{width:100%;max-width:none;margin:0;display:flex;align-items:center;justify-content:space-between;padding:12px 20px 12px 0;}
+.logo{display:flex;align-items:center;gap:10px;flex:none;color:var(--text);font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;text-decoration:none;white-space:nowrap;}
+.logo-img{height:48px;width:50px;display:block;object-fit:contain;filter:brightness(0) invert(1);}
 .nav{display:flex;align-items:center;gap:22px;}
 .nav a{text-decoration:none;color:var(--text-muted);font-weight:600;font-size:14px;transition:color .15s;}
 .nav a:hover{color:var(--text);}
@@ -101,15 +102,16 @@ header{
   background:var(--accent-2-soft);color:var(--accent-2);border:1px solid rgba(255,176,32,.3);
 }
 .badge-secure{background:rgba(51,193,122,.12);color:var(--success);border-color:rgba(51,193,122,.3);}
-.banner-logo-center{text-align:center;}
-.banner-logo{height:64px;width:64px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);}
+.banner-logo-center{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;text-align:center;}
+.banner-logo{height:82px;width:82px;border:2px solid var(--accent);border-radius:50%;object-fit:cover;background:#fff;}
 .neon-text{
   font-family:'Rajdhani',sans-serif;font-weight:700;color:var(--accent-2);
-  text-shadow:0 0 14px rgba(255,176,32,.5);margin-top:8px;font-size:15px;
+  text-shadow:0 0 14px rgba(255,176,32,.5);margin:8px 0 0;font-size:17px;white-space:nowrap;
 }
 .banner-text-right{text-align:right;}
 .status-box{display:flex;flex-direction:column;align-items:flex-end;gap:6px;font-size:13px;color:var(--text-muted);}
 .open-pill{background:rgba(51,193,122,.14);color:var(--success);padding:4px 10px;border-radius:999px;font-weight:600;font-size:12px;}
+.open-pill.closed{background:rgba(255,77,77,.14);color:#ff6b6b;}
 .cta-text{margin-top:10px;font-weight:700;color:var(--accent-2);font-size:14px;}
 
 @media (max-width:800px){
@@ -117,6 +119,15 @@ header{
   .banner-text-right{text-align:center;}
   .status-box{align-items:center;}
   .banner-badges{justify-content:center;}
+  .logo{font-size:18px;}
+  .logo-img{height:40px;width:42px;}
+  .banner-logo{height:82px;width:82px;}
+  .neon-text{font-size:17px;}
+}
+
+@media (max-width:480px){
+  .banner-logo{height:76px;width:76px;}
+  .neon-text{font-size:15px;}
 }
 
 /* ---------------- shop / categories ---------------- */

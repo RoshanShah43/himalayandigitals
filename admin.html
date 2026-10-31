@@ -558,7 +558,7 @@ input,select,textarea{font-family:inherit;}
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Base price (used if no options are listed)</label>
+                        <label id="productPriceLabel">Base price (used if no options are listed)</label>
                         <input type="number" id="productPrice" min="0" step="0.01">
                         <span class="field-error" id="productPriceError"></span>
                     </div>
@@ -570,7 +570,25 @@ input,select,textarea{font-family:inherit;}
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Stock *</label>
+                        <label>Pricing type</label>
+                        <select id="productPricingMode">
+                            <option value="fixed">Fixed price per item</option>
+                            <option value="per_1000">Price per 1,000 units (SMM)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="productQuantityLimits" style="display:none;">
+                        <label>Allowed quantity range</label>
+                        <div style="display:flex;gap:8px;">
+                            <input type="number" id="productMinQuantity" min="1" step="1" value="1000" aria-label="Minimum quantity">
+                            <input type="number" id="productMaxQuantity" min="1" max="2147483647" step="1" value="100000" aria-label="Maximum quantity">
+                        </div>
+                        <span class="row-slug">Customers can order within this range.</span>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label id="productStockLabel">Stock *</label>
                         <input type="number" id="productStock" min="0" step="1" required>
                     </div>
                     <div class="form-group">
@@ -612,7 +630,7 @@ input,select,textarea{font-family:inherit;}
                     <label>Purchase options</label>
                     <div id="productOptions"></div>
                     <button type="button" id="addProductOptionBtn" class="btn-secondary package-add-btn">+ Add option</button>
-                    <span class="row-slug">Add options such as “1 Month — Rs 100” or “30 Diamonds — Rs 45”. Option prices are charged at checkout.</span>
+                    <span class="row-slug" id="productOptionsHelp">Add options such as “1 Month — Rs 100” or “30 Diamonds — Rs 45”. Option prices are charged at checkout.</span>
                 </div>
 
                 <div class="form-row">
@@ -699,6 +717,13 @@ var LS = {
 };
 
 var PAGE_SIZE = 8;
+var ADMIN_DEFAULT_SITE_SETTINGS = {
+  websiteActive: true,
+  openingTime: '11:00',
+  closingTime: '22:00',
+  contactEmail: 'rsbazar47@gmail.com',
+  contactPhone: '9813920517'
+};
 
 function loadJSON(key, fallback) {
   try {
@@ -833,10 +858,7 @@ function nowISO() { return new Date().toISOString(); }
 // ---- Seed data (first run only) ----
 function ensureSeed() {
   if (localStorage.getItem(LS.settings) === null) {
-    saveJSON(LS.settings, {
-      websiteActive: true, openingTime: '11:00', closingTime: '22:00',
-      contactEmail: 'rsbazar47@gmail.com', contactPhone: '9813920517'
-    });
+    localStorage.setItem(LS.settings, JSON.stringify(ADMIN_DEFAULT_SITE_SETTINGS));
   }
   if (localStorage.getItem(LS.categories) === null) localStorage.setItem(LS.categories, '[]');
   if (localStorage.getItem(LS.products) === null) localStorage.setItem(LS.products, '[]');
@@ -1350,7 +1372,7 @@ function renderProductsTab() {
         '<td>' + escapeHTML(cat ? cat.name : '—') + '</td>' +
         '<td>' + escapeHTML(subcat ? subcat.name : '—') + '</td>' +
         '<td>' + escapeHTML(p.brand || '—') + '</td>' +
-        '<td><span class="row-price">Rs' + p.price + '</span>' + (p.discount_price ? '<br><span class="row-slug">was Rs' + p.discount_price + '</span>' : '') + '</td>' +
+        '<td><span class="row-price">Rs' + p.price + (p.pricing_mode === 'per_1000' ? ' / 1,000' : '') + '</span>' + (p.discount_price ? '<br><span class="row-slug">was Rs' + p.discount_price + '</span>' : '') + '</td>' +
         '<td>' + p.stock + '</td>' +
         '<td><button class="status-badge ' + p.status + '" onclick="toggleProductStatus(\'' + p.id + '\')">' + p.status + '</button></td>' +
         '<td><button class="featured-star ' + (p.featured ? 'on' : '') + '" title="Toggle featured" onclick="toggleFeatured(\'' + p.id + '\')">★</button></td>' +
@@ -1417,6 +1439,8 @@ function openProductForm(id) {
   var form = document.getElementById('productForm');
   form.reset();
   form.setAttribute('data-editing-id', '');
+  document.getElementById('productMinQuantity').value = 1000;
+  document.getElementById('productMaxQuantity').value = 100000;
   renderProductOptionRows([]);
   populateProductMainCategorySelect(null);
   refreshProductSubcategoryOptions(null, null);
@@ -1430,6 +1454,9 @@ function openProductForm(id) {
       document.getElementById('productBrand').value = p.brand || '';
       document.getElementById('productPrice').value = p.price != null ? p.price : '';
       document.getElementById('productDiscountPrice').value = p.discount_price != null ? p.discount_price : '';
+      document.getElementById('productPricingMode').value = p.pricing_mode || 'fixed';
+      document.getElementById('productMinQuantity').value = p.pricing_mode === 'per_1000' ? p.min_quantity : 1000;
+      document.getElementById('productMaxQuantity').value = p.pricing_mode === 'per_1000' && p.max_quantity < 2147483647 ? p.max_quantity : 100000;
       document.getElementById('productStock').value = p.stock != null ? p.stock : '';
       document.getElementById('productSKU').value = p.sku || '';
       document.getElementById('productImage').value = p.image || '';
@@ -1446,9 +1473,27 @@ function openProductForm(id) {
   } else {
     document.getElementById('formTitle').textContent = 'Add New Product';
   }
+  updateProductPricingControls();
   document.getElementById('productFormContainer').classList.remove('hidden');
 }
 function hideProductForm() { document.getElementById('productFormContainer').classList.add('hidden'); }
+
+function updateProductPricingControls() {
+  var perThousand = document.getElementById('productPricingMode').value === 'per_1000';
+  document.getElementById('productQuantityLimits').style.display = perThousand ? 'block' : 'none';
+  document.getElementById('productStock').required = !perThousand;
+  document.getElementById('productStockLabel').textContent = perThousand ? 'Stock (not used for SMM services)' : 'Stock *';
+  document.getElementById('productPriceLabel').textContent = perThousand
+    ? 'Base rate per 1,000 units (used if no options are listed)'
+    : 'Base price (used if no options are listed)';
+  document.getElementById('productOptionsHelp').textContent = perThousand
+    ? 'Each option price is charged per 1,000 units. For example, Rs50 per 1,000 means 1,000 units cost Rs50.'
+    : 'Add options such as “1 Month — Rs 100” or “30 Diamonds — Rs 45”. Option prices are charged at checkout.';
+  document.querySelectorAll('.package-option-price').forEach(function (input) {
+    input.placeholder = perThousand ? 'Price per 1,000 (Rs)' : 'Price (Rs)';
+    input.setAttribute('aria-label', perThousand ? 'Option price per 1,000 units in rupees' : 'Option price in rupees');
+  });
+}
 
 function addProductOptionRow(pkg) {
   var row = document.createElement('div');
@@ -1467,8 +1512,9 @@ function addProductOptionRow(pkg) {
   price.className = 'package-option-price';
   price.min = '0';
   price.step = '0.01';
-  price.placeholder = 'Price (Rs)';
-  price.setAttribute('aria-label', 'Option price in rupees');
+  var perThousand = document.getElementById('productPricingMode').value === 'per_1000';
+  price.placeholder = perThousand ? 'Price per 1,000 (Rs)' : 'Price (Rs)';
+  price.setAttribute('aria-label', perThousand ? 'Option price per 1,000 units in rupees' : 'Option price in rupees');
   price.value = pkg && pkg.value != null ? pkg.value : '';
 
   var remove = document.createElement('button');
@@ -1509,6 +1555,9 @@ function handleProductFormSubmit(e) {
   var description = document.getElementById('productDescription').value.trim();
   var delivery = document.getElementById('productDelivery').value.trim() || '1-5 min';
   var accountType = document.getElementById('productAccountType').value;
+  var pricingMode = document.getElementById('productPricingMode').value;
+  var minQuantity = parseInt(document.getElementById('productMinQuantity').value, 10);
+  var maxQuantity = parseInt(document.getElementById('productMaxQuantity').value, 10);
   var needsServer = document.getElementById('productNeedsServer').checked;
   var packages = [];
   var optionRows = document.querySelectorAll('#productOptions .package-editor-row');
@@ -1554,6 +1603,13 @@ function handleProductFormSubmit(e) {
     showToast('Enter a valid discount price.');
     valid = false;
   }
+  if (pricingMode === 'per_1000' && (
+    !Number.isInteger(minQuantity) || minQuantity < 1 ||
+    !Number.isInteger(maxQuantity) || maxQuantity < minQuantity || maxQuantity > 2147483647
+  )) {
+    showToast('Enter a valid quantity range. The maximum must be at least the minimum and no more than 2,147,483,647.');
+    valid = false;
+  }
   if (!valid && optionRows.length) showToast('Each purchase option needs a name and a valid price.');
   if (!valid) return;
 
@@ -1563,6 +1619,9 @@ function handleProductFormSubmit(e) {
     brand: brand, stock: isNaN(stock) ? 0 : stock, sku: sku, image: image,
     category_id: mainCategoryId, subcategory_id: subCategoryId || '',
     status: status, featured: featured, delivery: delivery, account_type: accountType, needs_server: needsServer,
+    pricing_mode: pricingMode,
+    min_quantity: pricingMode === 'per_1000' ? minQuantity : 1,
+    max_quantity: pricingMode === 'per_1000' ? maxQuantity : 2147483647,
     packages: packages, updated_at: nowISO()
   };
 
@@ -1783,15 +1842,30 @@ function renderSettings() {
   document.getElementById('contactEmail').value = s.contactEmail || '';
   document.getElementById('contactPhone').value = s.contactPhone || '';
 }
-function saveSettings() {
-  saveJSON(LS.settings, {
+async function persistSiteSettings(settings) {
+  var result = await window.getSupabaseClient().from('site_settings').upsert({
+    id: 'storefront',
+    settings: settings
+  });
+  if (result.error) throw result.error;
+  localStorage.setItem(LS.settings, JSON.stringify(settings));
+  setCloudStatus('Connected · all changes saved to Supabase.', false);
+}
+async function saveSettings() {
+  var settings = {
     websiteActive: document.getElementById('websiteStatus').checked,
     openingTime: document.getElementById('openingTime').value,
     closingTime: document.getElementById('closingTime').value,
     contactEmail: document.getElementById('contactEmail').value.trim(),
     contactPhone: document.getElementById('contactPhone').value.trim()
-  });
-  showToast('Settings saved.');
+  };
+  try {
+    await persistSiteSettings(settings);
+    showToast('Settings saved and synced to the storefront.');
+  } catch (error) {
+    setCloudStatus('Settings save failed: ' + (error.message || 'unknown error'), true);
+    showToast('Could not save settings: ' + (error.message || 'unknown error'));
+  }
 }
 
 // ============================================================
@@ -1853,7 +1927,7 @@ function exportAllData() {
   }, null, 2), 'application/json');
 }
 async function clearAllData() {
-  if (!confirm('This permanently deletes all Supabase categories, products, and orders, deactivates coupons, and resets local settings. Coupon usage history is retained. Continue?')) return;
+  if (!confirm('This permanently deletes all Supabase categories, products, and orders, deactivates coupons, and resets storefront settings. Coupon usage history is retained. Continue?')) return;
   var couponsSaved = await saveCoupons(getCoupons().map(function (coupon) {
     return Object.assign({}, coupon, { is_active: false, updated_at: nowISO() });
   }));
@@ -1861,10 +1935,15 @@ async function clearAllData() {
   var ordersSaved = await saveJSON(LS.orders, []);
   var productsSaved = await saveJSON(LS.products, []);
   var categoriesSaved = await saveJSON(LS.categories, []);
-  localStorage.removeItem(LS.settings);
-  ensureSeed();
+  try {
+    await persistSiteSettings(ADMIN_DEFAULT_SITE_SETTINGS);
+  } catch (error) {
+    setCloudStatus('Could not reset storefront settings: ' + error.message, true);
+    showToast('Could not reset storefront settings: ' + error.message);
+    return;
+  }
   renderTab('dashboard');
-  if (ordersSaved && productsSaved && categoriesSaved) showToast('Catalog and orders cleared; coupons deactivated.');
+  if (ordersSaved && productsSaved && categoriesSaved) showToast('Catalog and orders cleared; settings reset and coupons deactivated.');
 }
 function downloadFile(filename, content, mime) {
   var blob = new Blob([content], { type: mime });
@@ -2001,7 +2080,8 @@ document.addEventListener('DOMContentLoaded', async function () {
       client.from('products').select('*').order('created_at', { ascending: false }),
       client.from('orders').select('*').order('created_at', { ascending: false }),
       client.from('profiles').select('id,username,email,is_admin').order('created_at', { ascending: true }),
-      client.from('coupons').select('*').order('created_at', { ascending: false })
+      client.from('coupons').select('*').order('created_at', { ascending: false }),
+      client.from('site_settings').select('settings').eq('id', 'storefront').maybeSingle()
     ]);
     results.forEach(function (result) { if (result.error) throw result.error; });
     localStorage.setItem(LS.categories, JSON.stringify(results[0].data || []));
@@ -2036,8 +2116,12 @@ document.addEventListener('DOMContentLoaded', async function () {
       };
     })));
     localStorage.setItem(LS.coupons, JSON.stringify(results[4].data || []));
+    if (results[5].data && results[5].data.settings) {
+      localStorage.setItem(LS.settings, JSON.stringify(results[5].data.settings));
+    }
 
     ensureSeed();
+    if (!results[5].data) await persistSiteSettings(loadJSON(LS.settings, ADMIN_DEFAULT_SITE_SETTINGS));
     document.getElementById('adminDashboard').classList.remove('hidden');
     document.getElementById('adminName').textContent = profile.data.username || auth.data.user.email;
     loadError.style.display = 'none';
@@ -2073,6 +2157,7 @@ document.addEventListener('DOMContentLoaded', async function () {
   // Product tab
   document.getElementById('addProductBtn').addEventListener('click', function () { openProductForm(null); });
   document.getElementById('addProductOptionBtn').addEventListener('click', function () { addProductOptionRow(null); });
+  document.getElementById('productPricingMode').addEventListener('change', updateProductPricingControls);
   document.getElementById('productForm').addEventListener('submit', handleProductFormSubmit);
   document.getElementById('productMainCategory').addEventListener('change', function (e) {
     refreshProductSubcategoryOptions(e.target.value || null, null);

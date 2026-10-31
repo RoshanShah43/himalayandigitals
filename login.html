@@ -212,6 +212,25 @@
   .submit-btn.loading .spinner{ display:inline-block; }
   @keyframes spin{ to{ transform: rotate(360deg); } }
 
+  .google-btn{
+    width:100%;
+    display:flex; align-items:center; justify-content:center; gap:11px;
+    padding:12px;
+    margin-top:14px;
+    border:1px solid rgba(239,230,211,.28);
+    border-radius:999px;
+    background:#fff;
+    color:#252525;
+    font-family:'Work Sans', sans-serif;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    transition:background .15s ease, transform .15s ease, opacity .15s ease;
+  }
+  .google-btn:hover:not(:disabled){ background:#f2f2f2; transform:translateY(-1px); }
+  .google-btn:disabled{ opacity:.6; cursor:wait; }
+  .google-btn svg{ width:18px; height:18px; flex:none; }
+
   .banner{
     display:none;
     align-items:flex-start; gap:10px;
@@ -305,7 +324,16 @@
           <span class="spinner"></span><span class="btn-label">Log in</span>
         </button>
       </form>
-      <div class="demo-note">Admin access is granted by a database role. New accounts may need email confirmation.</div>
+      <button type="button" class="google-btn" id="googleLoginBtn">
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+          <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+          <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.76 7.18l7.73 6C44.42 38.1 46.98 31.96 46.98 24.55z"/>
+          <path fill="#FBBC05" d="M10.53 28.59A14.4 14.4 0 0 1 9.75 24c0-1.59.27-3.13.76-4.59l-7.98-6.19A23.9 23.9 0 0 0 0 24c0 3.87.93 7.53 2.56 10.78l7.97-6.19z"/>
+          <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.91-5.8l-7.73-6c-2.15 1.45-4.9 2.3-8.18 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+        </svg>
+        Continue with Google
+      </button>
+      <div class="demo-note">Admin access is granted by a database role. Google sign-in must be enabled in Supabase.</div>
     </div>
 
     <!-- SIGNUP -->
@@ -483,10 +511,21 @@ suConfirm.addEventListener('input', validateConfirm);
 /* ---------- submit: login ---------- */
 const loginForm = document.getElementById('loginForm');
 const loginSubmit = document.getElementById('loginSubmit');
+const googleLoginBtn = document.getElementById('googleLoginBtn');
 
 function setLoading(btn, isLoading){
   btn.disabled = isLoading;
   btn.classList.toggle('loading', isLoading);
+}
+
+async function redirectAfterLogin(user){
+  const client = window.getSupabaseClient();
+  const profile = await client.from('profiles').select('is_admin').eq('id', user.id).single();
+  if (profile.error) throw profile.error;
+  showSuccess('Login successful! Redirecting…');
+  setTimeout(() => {
+    window.location.href = profile.data.is_admin ? 'admin.html' : 'index.html';
+  }, 700);
 }
 
 loginForm.addEventListener('submit', async function(e){
@@ -504,18 +543,53 @@ loginForm.addEventListener('submit', async function(e){
   setLoading(loginSubmit, true);
   try {
     const result = await authRequest('login', { email: username, password });
-    const user = result.user;
-    const client = window.getSupabaseClient();
-    const profile = await client.from('profiles').select('is_admin').eq('id', user.id).single();
-    if (profile.error) throw profile.error;
     setLoading(loginSubmit, false);
-    showSuccess('Login successful! Redirecting…');
-    setTimeout(() => { window.location.href = profile.data.is_admin ? 'admin.html' : 'index.html'; }, 700);
+    await redirectAfterLogin(result.user);
   } catch (error) {
     setLoading(loginSubmit, false);
     showError(error.message);
   }
 });
+
+googleLoginBtn.addEventListener('click', async function(){
+  clearBanners();
+  googleLoginBtn.disabled = true;
+  try {
+    const client = window.getSupabaseClient();
+    const result = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: new URL('login.html', window.location.href).toString() }
+    });
+    if (result.error) throw result.error;
+  } catch (error) {
+    googleLoginBtn.disabled = false;
+    showError(error.message);
+  }
+});
+
+async function handleOAuthRedirect(){
+  const params = new URLSearchParams(window.location.search);
+  const oauthError = params.get('error_description') || params.get('error');
+  if (oauthError){
+    showError(oauthError);
+    window.history.replaceState({}, document.title, window.location.pathname);
+    return;
+  }
+  if (!params.has('code')) return;
+
+  try {
+    const client = window.getSupabaseClient();
+    const result = await client.auth.getSession();
+    if (result.error) throw result.error;
+    if (!result.data.session) throw new Error('Google sign-in did not create a session. Please try again.');
+    await redirectAfterLogin(result.data.session.user);
+  } catch (error) {
+    showError(error.message);
+  } finally {
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+}
+handleOAuthRedirect();
 
 /* ---------- submit: signup ---------- */
 const signupForm = document.getElementById('signupForm');

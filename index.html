@@ -19,7 +19,10 @@
 <body>
 <header>
     <div class="container header-inner">
-        <div class="logo"><img src="hdl.png" alt="Himalayan Digitals" class="logo-img"></div>
+        <a class="logo" href="#" aria-label="Himalayan Digitals home">
+            <img src="hdl.png" alt="" class="logo-img">
+            <span>Himalayan Digitals</span>
+        </a>
         <nav class="nav">
             <a href="#">Home</a>
             <a href="#shop">Shop</a>
@@ -56,14 +59,14 @@
                     </div>
                 </div>
                 <div class="banner-logo-center">
-                    <img src="logoh.jpeg" alt="Himalayan Digitals" class="banner-logo">
+                    <img src="logoh.jpeg" alt="Himalayan Digitals logo" class="banner-logo">
                     <p class="neon-text">Himalayan Digitals</p>
                 </div>
                 <div class="banner-text-right">
                     <div class="status-box">
-                        <span class="open-pill">🟢 OPEN NOW</span>
-                        <span class="hours">📱 11:00 AM - 10:00 PM</span>
-                        <span class="helpline">📞 Helpline: 9713746286</span>
+                        <span class="open-pill" id="storeStatus">🟢 OPEN NOW</span>
+                        <span class="hours" id="storeHours">📱 11:00 AM - 10:00 PM</span>
+                        <span class="helpline" id="storeHelpline">📞 Helpline: 9813920517</span>
                     </div>
                     <p class="cta-text">Best Rates Guaranteed!</p>
                 </div>
@@ -154,9 +157,10 @@
                     <label id="quantityLabel">Quantity</label>
                     <div class="quantity-control">
                         <button class="qty-btn" id="qtyDecrement" onclick="decrementQuantity()">−</button>
-                        <input type="number" id="quantity" value="1" min="1" readonly>
+                        <input type="number" id="quantity" value="1" min="1" readonly onchange="setQuantity(this.value)">
                         <button class="qty-btn" id="qtyIncrement" onclick="incrementQuantity()">+</button>
                     </div>
+                    <p id="quantityPricePreview" aria-live="polite"></p>
                 </div>
 
                 <button class="add-to-cart-btn" id="addToCartBtn" onclick="handleAddToCart()">Add to Cart</button>
@@ -176,8 +180,8 @@
     <div class="container contact-grid">
         <div class="contact-box">
             <h3>Contact Info</h3>
-            <p><strong>Email:</strong> <a href="mailto:himalayandigitals1@gmail.com">himalayandigitals1@gmail.com</a></p>
-            <p><strong>Phone:</strong> <a href="tel:9768907285">Helpline: 9768907285</a></p>
+            <p><strong>Email:</strong> <a id="contactEmailLink" href="mailto:rsbazar47@gmail.com">rsbazar47@gmail.com</a></p>
+            <p><strong>Phone:</strong> <a id="contactPhoneLink" href="tel:9813920517">Helpline: 9813920517</a></p>
         </div>
         <div class="contact-box">
             <h3>Quick Links</h3>

@@ -39,10 +39,24 @@ create table if not exists public.products (
   delivery text not null default '1-5 min',
   account_type text not null default 'email' check (account_type in ('uid', 'email')),
   needs_server boolean not null default false,
+  pricing_mode text not null default 'fixed',
+  min_quantity integer not null default 1,
+  max_quantity integer not null default 2147483647,
   packages jsonb not null default '[]'::jsonb check (jsonb_typeof(packages) = 'array'),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.products
+  add column if not exists pricing_mode text not null default 'fixed',
+  add column if not exists min_quantity integer not null default 1,
+  add column if not exists max_quantity integer not null default 2147483647;
+alter table public.products drop constraint if exists products_pricing_mode_check;
+alter table public.products add constraint products_pricing_mode_check
+  check (pricing_mode in ('fixed', 'per_1000'));
+alter table public.products drop constraint if exists products_quantity_range_check;
+alter table public.products add constraint products_quantity_range_check
+  check (min_quantity > 0 and max_quantity >= min_quantity);
 
 create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),
@@ -79,6 +93,12 @@ create table if not exists public.coupons (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (expires_at > starts_at)
+);
+
+create table if not exists public.site_settings (
+  id text primary key check (id = 'storefront'),
+  settings jsonb not null default '{}'::jsonb check (jsonb_typeof(settings) = 'object'),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.coupon_redemptions (
@@ -140,6 +160,7 @@ declare
   redemption public.coupon_redemptions%rowtype;
   package_price numeric;
   expected_discount numeric;
+  order_subtotal numeric;
   selected_package jsonb;
 begin
   select * into product
@@ -150,10 +171,6 @@ begin
   if not found then
     raise exception 'Product is unavailable';
   end if;
-  if product.stock < new.quantity then
-    raise exception 'Insufficient product stock';
-  end if;
-
   if jsonb_array_length(product.packages) = 0 and new.package_id = 'default' then
     package_price := coalesce(product.discount_price, product.price);
     new.pack_label := '1 item';
@@ -170,6 +187,18 @@ begin
 
   if package_price is null or round(new.price, 2) <> round(package_price, 2) then
     raise exception 'Selected package or price is invalid';
+  end if;
+
+  if product.pricing_mode = 'per_1000' then
+    if new.quantity < product.min_quantity or new.quantity > product.max_quantity then
+      raise exception 'Quantity must be between % and %', product.min_quantity, product.max_quantity;
+    end if;
+    order_subtotal := round(package_price * new.quantity / 1000, 2);
+  else
+    if product.stock < new.quantity then
+      raise exception 'Insufficient product stock';
+    end if;
+    order_subtotal := round(package_price * new.quantity, 2);
   end if;
 
   new.coupon_code := upper(btrim(coalesce(new.coupon_code, '')));
@@ -212,7 +241,7 @@ begin
       update public.coupons set usage_count = usage_count + 1 where id = coupon.id;
     end if;
 
-    expected_discount := round(package_price * new.quantity * coupon.percent_off / 100, 2);
+    expected_discount := round(order_subtotal * coupon.percent_off / 100, 2);
     if round(coalesce(new.discount_amount, 0), 2) <> expected_discount then
       raise exception 'Coupon discount changed; apply the coupon again';
     end if;
@@ -225,8 +254,10 @@ begin
   end if;
 
   new.game_title := product.name;
-  new.total := round(package_price * new.quantity - new.discount_amount, 2);
-  update public.products set stock = stock - new.quantity where id = product.id;
+  new.total := round(order_subtotal - new.discount_amount, 2);
+  if product.pricing_mode <> 'per_1000' then
+    update public.products set stock = stock - new.quantity where id = product.id;
+  end if;
   return new;
 end;
 $$;
@@ -282,6 +313,12 @@ security definer
 set search_path = public
 as $$
 begin
+  if not exists (
+    select 1 from public.products where id = old.product_id and pricing_mode <> 'per_1000'
+  ) then
+    return new;
+  end if;
+
   if old.status <> 'Cancelled' and new.status = 'Cancelled' then
     update public.products set stock = stock + old.quantity where id = old.product_id;
   elsif old.status = 'Cancelled' and new.status <> 'Cancelled' then
@@ -308,7 +345,9 @@ security definer
 set search_path = public
 as $$
 begin
-  if old.status <> 'Cancelled' then
+  if old.status <> 'Cancelled' and exists (
+    select 1 from public.products where id = old.product_id and pricing_mode <> 'per_1000'
+  ) then
     update public.products set stock = stock + old.quantity where id = old.product_id;
   end if;
   return old;
@@ -359,6 +398,7 @@ alter table public.products enable row level security;
 alter table public.orders enable row level security;
 alter table public.coupons enable row level security;
 alter table public.coupon_redemptions enable row level security;
+alter table public.site_settings enable row level security;
 
 drop policy if exists "Users read own profile" on public.profiles;
 create policy "Users read own profile" on public.profiles for select
@@ -409,6 +449,16 @@ drop policy if exists "Admins delete coupons" on public.coupons;
 create policy "Admins delete coupons" on public.coupons for delete
   using (public.current_user_is_admin());
 
+drop policy if exists "Public read storefront settings" on public.site_settings;
+create policy "Public read storefront settings" on public.site_settings for select
+  using (true);
+drop policy if exists "Admins insert storefront settings" on public.site_settings;
+create policy "Admins insert storefront settings" on public.site_settings for insert
+  with check (public.current_user_is_admin());
+drop policy if exists "Admins update storefront settings" on public.site_settings;
+create policy "Admins update storefront settings" on public.site_settings for update
+  using (public.current_user_is_admin()) with check (public.current_user_is_admin());
+
 drop policy if exists "Customers read own orders" on public.orders;
 create policy "Customers read own orders" on public.orders for select
   using (user_id = auth.uid() or public.current_user_is_admin());
@@ -424,6 +474,8 @@ create policy "Admins delete orders" on public.orders for delete
 
 grant select on public.categories, public.products to anon, authenticated;
 grant insert, update, delete on public.categories, public.products to authenticated;
+grant select on public.site_settings to anon, authenticated;
+grant insert, update on public.site_settings to authenticated;
 grant select on public.coupons to authenticated;
 grant insert, update, delete on public.coupons to authenticated;
 grant select, update on public.profiles to authenticated;
