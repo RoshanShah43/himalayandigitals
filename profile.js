@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', async function () {
       details.className = 'order-details';
       var detailEntries = [
         ['Order date', new Date(order.created_at).toLocaleString()],
-        ['Account / UID', order.uid || '—'],
+        [order.target_url ? 'Target link' : 'Account / UID', order.target_url || order.uid || '—'],
         ['Server ID', order.server_id || '—'],
         ['Quantity', String(order.quantity)],
         ['Total', 'Rs' + order.total],

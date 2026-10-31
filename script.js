@@ -337,7 +337,7 @@ async function loadStoreCatalog() {
         accountType: product.account_type || (main.slug === 'games' ? 'uid' : 'email'),
         needsServer: Boolean(product.needs_server),
         pricingMode: product.pricing_mode || 'fixed',
-        minQuantity: Number(product.min_quantity) || 1,
+        minQuantity: product.pricing_mode === 'per_1000' ? Math.max(Number(product.min_quantity) || 1000, 1000) : (Number(product.min_quantity) || 1),
         maxQuantity: Number(product.max_quantity) || Number.MAX_SAFE_INTEGER,
         packages: packages.map(function (pkg, index) {
           return {
@@ -536,19 +536,24 @@ function openProductModal(gameId) {
   if (!game) { alert('Product not found: ' + gameId); return; }
 
   var isGameProduct = game.accountType === 'uid';
+  var isTargetLinkProduct = game.accountType === 'url';
   var uidGroup = document.getElementById('uidGroup');
   var gmailGroup = document.getElementById('gmailGroup');
+  var targetURLGroup = document.getElementById('targetURLGroup');
 
   document.getElementById('gameImage').src = game.image;
   document.getElementById('gameTitle').textContent = game.title;
   document.getElementById('gameCategory').textContent = (CATEGORY_LABELS[game.mainCategory] || game.mainCategory) + ' · ' + game.subCategory;
   document.getElementById('gameDescription').textContent = game.description;
   document.getElementById('gameDelivery').textContent = '⚡ Delivery in ' + game.delivery;
+  document.getElementById('accountDataHeading').textContent = isTargetLinkProduct ? 'Enter the Target Link' : 'Enter Your Account Data';
   document.getElementById('accountUID').value = '';
   document.getElementById('accountEmail').value = '';
+  document.getElementById('targetURL').value = '';
   document.getElementById('serverGroup').style.display = game.needsServer ? 'block' : 'none';
   if (uidGroup) uidGroup.style.display = isGameProduct ? 'block' : 'none';
-  if (gmailGroup) gmailGroup.style.display = isGameProduct ? 'none' : 'block';
+  if (gmailGroup) gmailGroup.style.display = isGameProduct || isTargetLinkProduct ? 'none' : 'block';
+  if (targetURLGroup) targetURLGroup.style.display = isTargetLinkProduct ? 'block' : 'none';
   document.getElementById('quantity').readOnly = true;
   document.getElementById('quantity').min = 1;
   document.getElementById('quantity').max = '';
@@ -718,8 +723,14 @@ function updateQuantityPricePreview() {
   }
   var quantity = Number(document.getElementById('quantity').value) || 1;
   var price = Number(selected.getAttribute('data-price')) || 0;
+  if (!Number.isInteger(quantity) || quantity < game.minQuantity || quantity > game.maxQuantity) {
+    preview.textContent = 'Enter a whole quantity between ' + game.minQuantity + ' and ' + game.maxQuantity + '.';
+    return;
+  }
   var total = roundMoney(game.pricingMode === 'per_1000' ? price * quantity / 1000 : price * quantity);
-  preview.textContent = 'Estimated total: Rs' + formatMoney(total);
+  preview.textContent = game.pricingMode === 'per_1000'
+    ? 'Rs' + formatMoney(price) + ' ÷ 1,000 × ' + quantity + ' = Rs' + formatMoney(total)
+    : 'Estimated total: Rs' + formatMoney(total);
 }
 
 function decrementQuantity() {
@@ -761,13 +772,15 @@ function handleAddToCart() {
   var gameId = modal.getAttribute('data-game-id');
   var game = GAME_DATA[gameId];
   var isGameProduct = game.accountType === 'uid';
+  var isTargetLinkProduct = game.accountType === 'url';
   var accountId = '';
+  var targetURL = '';
   var serverId = '';
   var quantityValue = document.getElementById('quantity').value;
-  var qty = parseInt(quantityValue, 10) || 1;
+  var qty = Number(quantityValue);
   var selected = document.querySelector('#packagesGrid .package-option.selected');
   if (game.pricingMode !== 'per_1000' && game.stock < 1) { alert('This product is currently out of stock.'); return; }
-  if (qty < game.minQuantity || qty > game.maxQuantity) {
+  if (!Number.isInteger(qty) || qty < game.minQuantity || qty > game.maxQuantity) {
     alert('Please enter a quantity between ' + game.minQuantity + ' and ' + game.maxQuantity + '.');
     return;
   }
@@ -776,6 +789,15 @@ function handleAddToCart() {
     accountId = document.getElementById('accountUID').value.trim();
     if (!accountId) { alert('Please enter your UID'); return; }
     serverId = document.getElementById('serverID').value.trim();
+  } else if (isTargetLinkProduct) {
+    targetURL = document.getElementById('targetURL').value.trim();
+    try {
+      var parsedTargetURL = new URL(targetURL);
+      if (!['http:', 'https:'].includes(parsedTargetURL.protocol)) throw new Error('Unsupported protocol');
+    } catch (error) {
+      alert('Please enter a valid video, profile, or page link starting with http:// or https://.');
+      return;
+    }
   } else {
     accountId = document.getElementById('accountEmail').value.trim().toLowerCase();
     var gmailPattern = /^[^\s@]+@gmail\.com$/i;
@@ -797,6 +819,7 @@ function handleAddToCart() {
     quantity: qty,
     pricingMode: game.pricingMode,
     accountUID: accountId,
+    targetURL: targetURL,
     serverId: serverId,
     accountType: game.accountType
   });
@@ -933,6 +956,13 @@ async function placeOrder(event) {
     alert('Your cart contains an outdated item. Remove it and add the product again.');
     return;
   }
+  if (cart.some(function (item) {
+    return item.pricingMode === 'per_1000' &&
+      (!item.targetURL || !Number.isInteger(Number(item.quantity)) || Number(item.quantity) < 1000);
+  })) {
+    alert('An SMM item is missing its target link or minimum quantity. Remove it and add the service again.');
+    return;
+  }
 
   var couponCode = appliedCoupon ? appliedCoupon.code : '';
   var checkoutId = appliedCoupon ? generateCheckoutId() : null;
@@ -977,6 +1007,7 @@ async function placeOrder(event) {
       game_title: item.gameTitle,
       pack_label: item.packageLabel,
       uid: item.accountUID,
+      target_url: item.targetURL || '',
       server_id: item.serverId || '',
       quantity: item.quantity,
       price: item.price,

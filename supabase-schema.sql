@@ -37,7 +37,7 @@ create table if not exists public.products (
   status text not null default 'active' check (status in ('active', 'inactive')),
   featured boolean not null default false,
   delivery text not null default '1-5 min',
-  account_type text not null default 'email' check (account_type in ('uid', 'email')),
+  account_type text not null default 'email' check (account_type in ('uid', 'email', 'url')),
   needs_server boolean not null default false,
   pricing_mode text not null default 'fixed',
   min_quantity integer not null default 1,
@@ -54,9 +54,21 @@ alter table public.products
 alter table public.products drop constraint if exists products_pricing_mode_check;
 alter table public.products add constraint products_pricing_mode_check
   check (pricing_mode in ('fixed', 'per_1000'));
+alter table public.products drop constraint if exists products_account_type_check;
+alter table public.products add constraint products_account_type_check
+  check (account_type in ('uid', 'email', 'url'));
 alter table public.products drop constraint if exists products_quantity_range_check;
 alter table public.products add constraint products_quantity_range_check
   check (min_quantity > 0 and max_quantity >= min_quantity);
+update public.products
+set min_quantity = greatest(min_quantity, 1000),
+    max_quantity = greatest(max_quantity, 1000)
+where pricing_mode = 'per_1000'
+  and (min_quantity < 1000 or max_quantity < 1000);
+alter table public.products drop constraint if exists products_per_1000_minimum_check;
+alter table public.products add constraint products_per_1000_minimum_check
+  check (pricing_mode <> 'per_1000' or min_quantity >= 1000);
+update public.products set account_type = 'url' where pricing_mode = 'per_1000' and account_type <> 'url';
 
 create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),
@@ -79,7 +91,8 @@ create table if not exists public.orders (
 alter table public.orders
   add column if not exists coupon_code text not null default '',
   add column if not exists discount_amount numeric(12,2) not null default 0 check (discount_amount >= 0),
-  add column if not exists checkout_id uuid;
+  add column if not exists checkout_id uuid,
+  add column if not exists target_url text not null default '';
 
 create table if not exists public.coupons (
   id text primary key,
@@ -189,9 +202,16 @@ begin
     raise exception 'Selected package or price is invalid';
   end if;
 
+  if product.account_type = 'url' then
+    new.target_url := btrim(coalesce(new.target_url, ''));
+    if new.target_url !~* '^https?://[^/[:space:]]+([/?#].*)?$' then
+      raise exception 'A valid target link starting with http:// or https:// is required';
+    end if;
+  end if;
+
   if product.pricing_mode = 'per_1000' then
-    if new.quantity < product.min_quantity or new.quantity > product.max_quantity then
-      raise exception 'Quantity must be between % and %', product.min_quantity, product.max_quantity;
+    if new.quantity < greatest(product.min_quantity, 1000) or new.quantity > product.max_quantity then
+      raise exception 'Quantity must be between % and %', greatest(product.min_quantity, 1000), product.max_quantity;
     end if;
     order_subtotal := round(package_price * new.quantity / 1000, 2);
   else

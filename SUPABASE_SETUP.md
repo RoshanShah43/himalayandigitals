@@ -10,7 +10,7 @@ That key is intended for browser use. Never put a `service_role` key, database p
 
 ## 2. Create the tables and security policies
 
-Open the Supabase SQL Editor and run [`supabase-schema.sql`](./supabase-schema.sql). It creates the profile, category, product, order, coupon, and storefront-settings tables, the signup profile trigger, and row-level security policies. If the project already has the earlier schema, run the updated file again to add coupon support, order discount fields, storefront settings, and per-1,000 product pricing. Do not disable RLS.
+Open the Supabase SQL Editor and run [`supabase-schema.sql`](./supabase-schema.sql). It creates the profile, category, product, order, coupon, and storefront-settings tables, the signup profile trigger, and row-level security policies. If the project already has the earlier schema, run the updated file again to add coupon support, per-1,000 pricing, the 1,000-unit minimum, target-link products, and the order target URL field. Do not disable RLS.
 
 ## 3. Configure Auth
 
@@ -36,7 +36,7 @@ Only an existing admin can grant or remove admin roles through the admin page. T
 
 Sign in as the admin and open `admin.html`. Add parent categories (for example Games, Subscriptions, and Level Up), optional subcategories, and products. Product purchase options are added in the product form as a customer-facing label and numeric price (for example, `25 Diamonds` at Rs 35). The one-click import of the current storefront catalog starts products with a high placeholder stock value; review and set accurate stock levels in the Products tab before taking orders. A successful order reserves stock, and cancelling an order restores it. Public pages show active products and categories only.
 
-In the product form, choose whether checkout should collect an email address or a game UID. Enable the server-ID option for products that need one. Product options have a label and price. For SMM-style services, choose **Price per 1,000 units**, enter each option's rate (for example, Rs 50), and set the allowed minimum and maximum quantity. The storefront calculates `rate × quantity ÷ 1,000`, so 1,000 units at Rs 50 per 1,000 costs Rs 50. Existing products remain fixed-price unless you change their pricing type.
+In the product form, choose whether checkout should collect an email address, a game UID, or a target link. Enable the server-ID option for products that need one. Product options have a label and price. For SMM-style services, choose **Price per 1,000 units**; the admin form defaults to a target link and a minimum quantity of 1,000. Enter each option's rate (for example, Rs 50 per 1,000) and maximum quantity. The storefront accepts a video, profile, or page URL, then calculates `rate per 1,000 × quantity ÷ 1,000` and previews the total before adding the service to the cart. Orders and the customer's profile keep the target link. Existing products remain fixed-price unless you change their pricing type.
 
 In the Coupons tab, create a percentage-off code, set when it starts and expires, and choose the maximum number of customers who can redeem it. Each customer can use a coupon once, and only one coupon can be applied per checkout. Customers apply the code at checkout; the database validates the date, usage limit, one-use rule, and discount when the order is submitted. Coupon uses are counted when an order is placed, including orders that are later cancelled.
 

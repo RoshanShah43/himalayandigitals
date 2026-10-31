@@ -164,7 +164,7 @@ input,select,textarea{font-family:inherit;}
   padding:14px 18px;display:grid;grid-template-columns:1.4fr 1fr .8fr .8fr 1fr auto;gap:12px;align-items:center;
 }
 .order-row .label{font-size:10.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;display:block;margin-bottom:2px;}
-.order-row .value{font-size:13.5px;font-weight:600;}
+.order-row .value{font-size:13.5px;font-weight:600;overflow-wrap:anywhere;}
 .order-price{font-family:'Space Mono',monospace;color:var(--accent-2);}
 .status-select{
   background:var(--bg-elevate);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-sm);
@@ -579,10 +579,10 @@ input,select,textarea{font-family:inherit;}
                     <div class="form-group" id="productQuantityLimits" style="display:none;">
                         <label>Allowed quantity range</label>
                         <div style="display:flex;gap:8px;">
-                            <input type="number" id="productMinQuantity" min="1" step="1" value="1000" aria-label="Minimum quantity">
+                            <input type="number" id="productMinQuantity" min="1000" step="1" value="1000" aria-label="Minimum quantity">
                             <input type="number" id="productMaxQuantity" min="1" max="2147483647" step="1" value="100000" aria-label="Maximum quantity">
                         </div>
-                        <span class="row-slug">Customers can order within this range.</span>
+                        <span class="row-slug">SMM orders start at 1,000 units; choose the maximum order size.</span>
                     </div>
                 </div>
 
@@ -617,6 +617,7 @@ input,select,textarea{font-family:inherit;}
                         <select id="productAccountType">
                             <option value="email">Email address</option>
                             <option value="uid">Game UID</option>
+                            <option value="url">Target link (SMM)</option>
                         </select>
                     </div>
                 </div>
@@ -752,6 +753,7 @@ function databaseOrder(order) {
     game_title: order.game_title || order.gameTitle,
     pack_label: order.pack_label || order.packLabel,
     uid: order.uid || '',
+    target_url: order.target_url || order.targetURL || '',
     server_id: order.server_id || order.serverId || '',
     quantity: Number(order.quantity) || 1,
     price: Number(order.price) || 0,
@@ -1455,8 +1457,8 @@ function openProductForm(id) {
       document.getElementById('productPrice').value = p.price != null ? p.price : '';
       document.getElementById('productDiscountPrice').value = p.discount_price != null ? p.discount_price : '';
       document.getElementById('productPricingMode').value = p.pricing_mode || 'fixed';
-      document.getElementById('productMinQuantity').value = p.pricing_mode === 'per_1000' ? p.min_quantity : 1000;
-      document.getElementById('productMaxQuantity').value = p.pricing_mode === 'per_1000' && p.max_quantity < 2147483647 ? p.max_quantity : 100000;
+      document.getElementById('productMinQuantity').value = p.pricing_mode === 'per_1000' ? Math.max(Number(p.min_quantity) || 1000, 1000) : 1000;
+      document.getElementById('productMaxQuantity').value = p.pricing_mode === 'per_1000' && p.max_quantity < 2147483647 ? Math.max(Number(p.max_quantity) || 1000, 1000) : 100000;
       document.getElementById('productStock').value = p.stock != null ? p.stock : '';
       document.getElementById('productSKU').value = p.sku || '';
       document.getElementById('productImage').value = p.image || '';
@@ -1480,7 +1482,11 @@ function hideProductForm() { document.getElementById('productFormContainer').cla
 
 function updateProductPricingControls() {
   var perThousand = document.getElementById('productPricingMode').value === 'per_1000';
+  var accountType = document.getElementById('productAccountType');
   document.getElementById('productQuantityLimits').style.display = perThousand ? 'block' : 'none';
+  document.getElementById('productMinQuantity').min = perThousand ? '1000' : '1';
+  if (perThousand) accountType.value = 'url';
+  accountType.disabled = perThousand;
   document.getElementById('productStock').required = !perThousand;
   document.getElementById('productStockLabel').textContent = perThousand ? 'Stock (not used for SMM services)' : 'Stock *';
   document.getElementById('productPriceLabel').textContent = perThousand
@@ -1604,10 +1610,10 @@ function handleProductFormSubmit(e) {
     valid = false;
   }
   if (pricingMode === 'per_1000' && (
-    !Number.isInteger(minQuantity) || minQuantity < 1 ||
+    !Number.isInteger(minQuantity) || minQuantity < 1000 ||
     !Number.isInteger(maxQuantity) || maxQuantity < minQuantity || maxQuantity > 2147483647
   )) {
-    showToast('Enter a valid quantity range. The maximum must be at least the minimum and no more than 2,147,483,647.');
+    showToast('SMM orders must start at 1,000 units. Enter a maximum at least as large as the minimum.');
     valid = false;
   }
   if (!valid && optionRows.length) showToast('Each purchase option needs a name and a valid price.');
@@ -1803,7 +1809,7 @@ function renderOrders() {
     var status = o.status || 'Pending';
     return '<div class="order-row" data-order-id="' + escapeAttr(o.id) + '">' +
       '<div><span class="label">Product</span><span class="value">' + escapeHTML(o.gameTitle || '') + '<br>' + escapeHTML(o.packLabel || '') + '</span></div>' +
-      '<div><span class="label">Account / UID</span><span class="value">' + escapeHTML(o.uid || '') + '</span></div>' +
+      '<div><span class="label">' + (o.target_url ? 'Target link' : 'Account / UID') + '</span><span class="value">' + escapeHTML(o.target_url || o.uid || '') + '</span></div>' +
       '<div><span class="label">Qty</span><span class="value">' + (o.quantity || 1) + '</span></div>' +
       '<div><span class="label">Total</span><span class="value order-price">Rs' + (o.total || 0) + '</span>' +
         (o.couponCode ? '<span class="label">Coupon</span><span class="value">' + escapeHTML(o.couponCode) + ' · -Rs' + (Number(o.discountAmount) || 0) + '</span>' : '') + '</div>' +
@@ -2100,6 +2106,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         gameTitle: row.game_title,
         packLabel: row.pack_label,
         uid: row.uid,
+        target_url: row.target_url || '',
         serverId: row.server_id,
         quantity: row.quantity,
         price: Number(row.price),

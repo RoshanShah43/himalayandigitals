@@ -103,7 +103,7 @@ header{
 }
 .badge-secure{background:rgba(51,193,122,.12);color:var(--success);border-color:rgba(51,193,122,.3);}
 .banner-logo-center{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;text-align:center;}
-.banner-logo{height:82px;width:82px;border:2px solid var(--accent);border-radius:50%;object-fit:cover;background:#fff;}
+.banner-logo{height:81px;width:81px;border:2px solid var(--accent);border-radius:50%;object-fit:cover;background:#fff;}
 .neon-text{
   font-family:'Rajdhani',sans-serif;font-weight:700;color:var(--accent-2);
   text-shadow:0 0 14px rgba(255,176,32,.5);margin:8px 0 0;font-size:17px;white-space:nowrap;
