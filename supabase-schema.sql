@@ -37,7 +37,7 @@ create table if not exists public.products (
   status text not null default 'active' check (status in ('active', 'inactive')),
   featured boolean not null default false,
   delivery text not null default '1-5 min',
-  account_type text not null default 'email' check (account_type in ('uid', 'email', 'url')),
+  account_type text not null default 'email' check (account_type in ('uid', 'email', 'url', 'whatsapp')),
   needs_server boolean not null default false,
   pricing_mode text not null default 'fixed',
   min_quantity integer not null default 1,
@@ -56,7 +56,7 @@ alter table public.products add constraint products_pricing_mode_check
   check (pricing_mode in ('fixed', 'per_1000'));
 alter table public.products drop constraint if exists products_account_type_check;
 alter table public.products add constraint products_account_type_check
-  check (account_type in ('uid', 'email', 'url'));
+  check (account_type in ('uid', 'email', 'url', 'whatsapp'));
 alter table public.products drop constraint if exists products_quantity_range_check;
 alter table public.products add constraint products_quantity_range_check
   check (min_quantity > 0 and max_quantity >= min_quantity);
@@ -78,6 +78,7 @@ create table if not exists public.orders (
   game_title text not null,
   pack_label text not null,
   uid text not null default '',
+  whatsapp_number text not null default '',
   server_id text not null default '',
   quantity integer not null default 1 check (quantity > 0),
   price numeric(12,2) not null check (price >= 0),
@@ -92,7 +93,8 @@ alter table public.orders
   add column if not exists coupon_code text not null default '',
   add column if not exists discount_amount numeric(12,2) not null default 0 check (discount_amount >= 0),
   add column if not exists checkout_id uuid,
-  add column if not exists target_url text not null default '';
+  add column if not exists target_url text not null default '',
+  add column if not exists whatsapp_number text not null default '';
 
 create table if not exists public.coupons (
   id text primary key,
@@ -206,6 +208,12 @@ begin
     new.target_url := btrim(coalesce(new.target_url, ''));
     if new.target_url !~* '^https?://[^/[:space:]]+([/?#].*)?$' then
       raise exception 'A valid target link starting with http:// or https:// is required';
+    end if;
+  elsif product.account_type = 'whatsapp' then
+    new.whatsapp_number := btrim(coalesce(new.whatsapp_number, ''));
+    if new.whatsapp_number !~ '^\+?[0-9 ()-]+$'
+      or length(regexp_replace(new.whatsapp_number, '[^0-9]', '', 'g')) not between 7 and 15 then
+      raise exception 'A valid WhatsApp number with 7 to 15 digits is required';
     end if;
   end if;
 

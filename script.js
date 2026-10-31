@@ -537,8 +537,10 @@ function openProductModal(gameId) {
 
   var isGameProduct = game.accountType === 'uid';
   var isTargetLinkProduct = game.accountType === 'url';
+  var isWhatsAppProduct = game.accountType === 'whatsapp';
   var uidGroup = document.getElementById('uidGroup');
   var gmailGroup = document.getElementById('gmailGroup');
+  var whatsAppGroup = document.getElementById('whatsAppGroup');
   var targetURLGroup = document.getElementById('targetURLGroup');
 
   document.getElementById('gameImage').src = game.image;
@@ -549,10 +551,12 @@ function openProductModal(gameId) {
   document.getElementById('accountDataHeading').textContent = isTargetLinkProduct ? 'Enter the Target Link' : 'Enter Your Account Data';
   document.getElementById('accountUID').value = '';
   document.getElementById('accountEmail').value = '';
+  document.getElementById('accountWhatsApp').value = '';
   document.getElementById('targetURL').value = '';
   document.getElementById('serverGroup').style.display = game.needsServer ? 'block' : 'none';
   if (uidGroup) uidGroup.style.display = isGameProduct ? 'block' : 'none';
-  if (gmailGroup) gmailGroup.style.display = isGameProduct || isTargetLinkProduct ? 'none' : 'block';
+  if (gmailGroup) gmailGroup.style.display = isGameProduct || isTargetLinkProduct || isWhatsAppProduct ? 'none' : 'block';
+  if (whatsAppGroup) whatsAppGroup.style.display = isWhatsAppProduct ? 'block' : 'none';
   if (targetURLGroup) targetURLGroup.style.display = isTargetLinkProduct ? 'block' : 'none';
   document.getElementById('quantity').readOnly = true;
   document.getElementById('quantity').min = 1;
@@ -773,7 +777,9 @@ function handleAddToCart() {
   var game = GAME_DATA[gameId];
   var isGameProduct = game.accountType === 'uid';
   var isTargetLinkProduct = game.accountType === 'url';
+  var isWhatsAppProduct = game.accountType === 'whatsapp';
   var accountId = '';
+  var whatsAppNumber = '';
   var targetURL = '';
   var serverId = '';
   var quantityValue = document.getElementById('quantity').value;
@@ -798,6 +804,13 @@ function handleAddToCart() {
       alert('Please enter a valid video, profile, or page link starting with http:// or https://.');
       return;
     }
+  } else if (isWhatsAppProduct) {
+    whatsAppNumber = document.getElementById('accountWhatsApp').value.trim();
+    var whatsAppDigits = whatsAppNumber.replace(/\D/g, '');
+    if (!/^\+?[0-9\s()-]+$/.test(whatsAppNumber) || whatsAppDigits.length < 7 || whatsAppDigits.length > 15) {
+      alert('Please enter a valid WhatsApp number with 7 to 15 digits.');
+      return;
+    }
   } else {
     accountId = document.getElementById('accountEmail').value.trim().toLowerCase();
     var gmailPattern = /^[^\s@]+@gmail\.com$/i;
@@ -819,6 +832,7 @@ function handleAddToCart() {
     quantity: qty,
     pricingMode: game.pricingMode,
     accountUID: accountId,
+    whatsAppNumber: whatsAppNumber,
     targetURL: targetURL,
     serverId: serverId,
     accountType: game.accountType
@@ -1007,6 +1021,7 @@ async function placeOrder(event) {
       game_title: item.gameTitle,
       pack_label: item.packageLabel,
       uid: item.accountUID,
+      whatsapp_number: item.whatsAppNumber || '',
       target_url: item.targetURL || '',
       server_id: item.serverId || '',
       quantity: item.quantity,
