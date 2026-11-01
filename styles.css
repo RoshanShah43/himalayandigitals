@@ -343,3 +343,107 @@ footer{text-align:center;padding:24px;color:var(--text-muted);font-size:13px;bor
 body.modal-open{overflow:hidden;}
 
 .notification-container{position:fixed;bottom:0;right:0;z-index:300;}
+
+/* ---------------- responsive layout ---------------- */
+.cart-wrapper{
+  display:inline-flex;align-items:center;justify-content:center;min-width:40px;min-height:40px;
+  padding:0;background:transparent;border:0;color:inherit;cursor:pointer;
+}
+.nav a,.profile-btn,.cart-wrapper,.qty-btn,.modal-close,.cart-drawer-close,.copy-btn{
+  touch-action:manipulation;
+}
+.games-grid>*{min-width:0;}
+
+@media (max-width:800px){
+  .header-inner{padding:10px 16px;}
+  .nav{gap:14px;}
+  .games-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));}
+  .hero-banner{padding:28px 22px;}
+  .delivery-section{margin-left:16px;margin-right:16px;padding:28px 18px;}
+}
+
+@media (max-width:640px){
+  .container{padding-left:16px;padding-right:16px;}
+  .header-inner{flex-wrap:wrap;justify-content:center;gap:4px;padding:8px 12px;}
+  .logo{justify-content:center;width:100%;font-size:18px;}
+  .logo-img{height:36px;width:38px;}
+  .nav{
+    width:100%;justify-content:center;flex-wrap:wrap;gap:2px 6px;
+  }
+  .nav>a{
+    display:inline-flex;align-items:center;justify-content:center;min-height:40px;
+    padding:7px 8px;font-size:13px;
+  }
+  .nav>a[href="login.html"]{
+    padding-left:12px;padding-right:12px;border-radius:999px;
+    background:var(--accent);color:#fff;
+  }
+  .profile-btn{min-height:40px;padding:7px 10px;font-size:13px;}
+  .profile-menu{z-index:60;}
+  .hero{padding-top:16px;}
+  .hero-banner{padding:24px 16px;border-radius:16px;}
+  .banner-content{gap:18px;}
+  .banner-title{font-size:clamp(30px,9vw,38px);}
+  .banner-subtitle{margin-bottom:10px;}
+  .banner-badges{gap:6px;}
+  .badge-fast,.badge-secure{font-size:11px;padding:6px 9px;}
+  .status-box{font-size:12px;}
+  .hours,.helpline{overflow-wrap:anywhere;}
+  .shop{padding:32px 0 20px;}
+  .shop-heading{margin-bottom:18px;}
+  .shop-heading h2{font-size:25px;}
+  .shop-sub{font-size:13.5px;}
+  .category-rail{
+    width:100%;justify-content:flex-start;border-radius:14px;
+    scrollbar-width:none;
+  }
+  .category-rail::-webkit-scrollbar{display:none;}
+  .cat-btn{flex:0 0 auto;padding:9px 13px;font-size:14px;}
+  .subcat-row{gap:7px;margin-bottom:18px;}
+  .subcat-chip{padding:8px 11px;font-size:12px;}
+  .games-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+  .game-card{border-radius:11px;}
+  .game-card h3,.game-card h4{padding:9px 9px 2px;font-size:14px;line-height:1.25;}
+  .game-card p{padding:0 9px 9px;font-size:11.5px;}
+  .card-ribbon,.card-delivery{top:6px;font-size:9px;padding:4px 6px;}
+  .card-ribbon{left:6px;}
+  .card-delivery{right:6px;}
+  .card-price-row{gap:4px;padding:0 9px 10px;align-items:flex-start;flex-direction:column;}
+  .card-price{font-size:12px;}
+  .card-from{font-size:9px;}
+  .shopping-modal,.checkout-modal,.modal{padding:10px;}
+  .shopping-modal-content,.checkout-modal-content{
+    max-height:calc(100vh - 20px);max-height:calc(100dvh - 20px);
+    border-radius:12px;
+  }
+  .shopping-left,.shopping-right{padding:18px;}
+  .shopping-left{padding-top:52px;}
+  .showcase-image{max-height:190px;aspect-ratio:16/9;object-fit:cover;}
+  .game-info h2{font-size:20px;}
+  .packages-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .package-option{min-width:0;padding:9px;}
+  .package-name{overflow-wrap:anywhere;}
+  .checkout-modal-content{padding:48px 16px 18px;}
+  .checkout-container{gap:16px;}
+  .checkout-item{gap:10px;overflow-wrap:anywhere;}
+  .checkout-item>*{min-width:0;}
+  .contact-section{padding:32px 16px;}
+  .contact-grid{gap:20px;}
+  .section{padding:26px 16px;}
+  footer{padding:20px 16px;}
+  .cart-drawer{width:min(360px,100vw);right:-100%;}
+}
+
+
+@media (max-width:380px){
+  .container{padding-left:12px;padding-right:12px;}
+  .header-inner{padding-left:8px;padding-right:8px;}
+  .nav{gap:0 3px;}
+  .nav>a{padding-left:6px;padding-right:6px;font-size:12px;}
+  .nav>a[href="login.html"]{padding-left:9px;padding-right:9px;}
+  .shop{padding-left:0;padding-right:0;}
+  .games-grid{gap:8px;}
+  .card-ribbon,.card-delivery{font-size:8px;padding:3px 5px;}
+  .shopping-left,.shopping-right{padding:14px;}
+  .shopping-left{padding-top:48px;}
+}
