@@ -18,7 +18,7 @@ In Authentication → URL Configuration, set the site URL to your deployed site 
 
 To let email/password customers log in without confirming by email, open Authentication → Providers → Email and turn off **Confirm email**. This is a Supabase project setting; the website code cannot change it. Disabling it allows accounts to sign in without proving control of the email address. Google sign-in uses Google's authenticated account and does not require this email-confirmation step.
 
-To enable the **Continue with Google** button, configure the Google provider under Authentication → Providers → Google with your Google OAuth client ID and secret. In Google Cloud, add the Supabase project's callback URL shown in the provider settings as an authorized redirect URI. Keep the website URL in Supabase's redirect allow list; the button returns users to `login.html`, then sends admins to `admin.html` and other users to `index.html`.
+To enable the **Continue with Google** button, configure the Google provider under Authentication → Providers → Google with your Google OAuth client ID and secret. In Google Cloud, add the Supabase project's callback URL shown in the provider settings as an authorized redirect URI; this is the Supabase callback, not your website's `login.html` URL. In Supabase's redirect allow list, include the full website URL ending in `/login.html` for each environment (for example, `https://your-domain.example/login.html` and `http://127.0.0.1:5000/login.html`). The button returns users to `login.html`, then sends admins to `admin.html` and other users to `index.html`.
 
 ## 4. Create the first admin
 

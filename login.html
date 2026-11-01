@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RS Bazar — Sign In</title>
+<title>Himalayan Digitals — Sign In</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -74,14 +74,13 @@
     border-top: 2px dashed rgba(239,230,211,.18);
   }
 
-  .stamp{
-    width:64px; height:64px; margin:0 auto 14px;
+  .brand-mark{
+    display:block;
+    width:72px; height:72px; margin:0 auto 14px;
     border-radius:50%;
-    background: conic-gradient(from 220deg, var(--brass-bright), var(--brass) 40%, #a97b1f 60%, var(--brass-bright));
-    display:flex; align-items:center; justify-content:center;
-    box-shadow: 0 10px 22px rgba(200,153,44,.35), inset 0 0 0 3px rgba(18,22,44,.55);
-    font-family:'Fraunces', serif;
-    font-weight:700; font-size:22px; color:var(--ink-2);
+    object-fit:cover;
+    background:#fff;
+    box-shadow: 0 10px 22px rgba(200,153,44,.35);
   }
 
   .brand{ text-align:center; margin-bottom:26px; }
@@ -252,18 +251,6 @@
   }
   .divider::before, .divider::after{ content:""; height:1px; flex:1; background: var(--line); }
 
-  .demo-note{
-    margin-top:16px;
-    padding:12px 14px;
-    background: rgba(0,0,0,.2);
-    border:1px dashed var(--line);
-    border-radius:10px;
-    font-size:12px;
-    color: var(--paper-dim);
-    line-height:1.55;
-  }
-  .demo-note b{ color: var(--brass-bright); font-weight:600; }
-
   .stub{
     text-align:center;
     margin-top:18px;
@@ -289,10 +276,10 @@
   <div class="ticket">
     <div class="perf"></div>
 
-    <div class="stamp">RS</div>
+    <img class="brand-mark" src="logoh.jpeg" alt="Himalayan Digitals logo">
     <div class="brand">
       <span class="eyebrow">Member Entry Token</span>
-      <h1>RS Bazar</h1>
+      <h1>Himalayan Digitals</h1>
       <p>Sign in or create an account</p>
     </div>
 
@@ -333,7 +320,6 @@
         </svg>
         Continue with Google
       </button>
-      <div class="demo-note">Admin access is granted by a database role. Google sign-in must be enabled in Supabase.</div>
     </div>
 
     <!-- SIGNUP -->
@@ -569,13 +555,18 @@ googleLoginBtn.addEventListener('click', async function(){
 
 async function handleOAuthRedirect(){
   const params = new URLSearchParams(window.location.search);
-  const oauthError = params.get('error_description') || params.get('error');
+  const hashParams = new URLSearchParams(window.location.hash.slice(1));
+  const oauthError = params.get('error_description')
+    || hashParams.get('error_description')
+    || params.get('error')
+    || hashParams.get('error');
   if (oauthError){
     showError(oauthError);
     window.history.replaceState({}, document.title, window.location.pathname);
     return;
   }
-  if (!params.has('code')) return;
+  const isOAuthCallback = params.has('code') || hashParams.has('access_token');
+  if (!isOAuthCallback) return;
 
   try {
     const client = window.getSupabaseClient();
