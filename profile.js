@@ -61,6 +61,12 @@ document.addEventListener('DOMContentLoaded', async function () {
       if (order.coupon_code) {
         detailEntries.splice(4, 0, ['Coupon', order.coupon_code + ' · -Rs' + order.discount_amount]);
       }
+      if (Number(order.refill_days) > 0) {
+        detailEntries.push(['Refill window', order.refill_days + ' days']);
+        if (order.refill_status) {
+          detailEntries.push(['Refill request', order.refill_status]);
+        }
+      }
       detailEntries.forEach(function (entry) {
         var item = document.createElement('div');
         item.className = 'detail-item';
@@ -76,6 +82,36 @@ document.addEventListener('DOMContentLoaded', async function () {
       });
       card.appendChild(heading);
       card.appendChild(details);
+      var refillDays = Number(order.refill_days) || 0;
+      var refillDeadline = new Date(order.created_at).getTime() + refillDays * 86400000;
+      if (refillDays > 0 && order.status === 'Completed' && !order.refill_status &&
+          Number.isFinite(refillDeadline) && Date.now() <= refillDeadline) {
+        var refillButton = document.createElement('button');
+        refillButton.className = 'profile-action';
+        refillButton.type = 'button';
+        refillButton.textContent = 'Request refill';
+        refillButton.addEventListener('click', async function () {
+          refillButton.disabled = true;
+          refillButton.textContent = 'Sending request…';
+          var request = await client.rpc('request_order_refill', { p_order_id: order.id });
+          if (request.error) {
+            refillButton.disabled = false;
+            refillButton.textContent = 'Request refill';
+            container.setAttribute('role', 'status');
+            refillButton.insertAdjacentText('afterend', ' ' + request.error.message);
+            return;
+          }
+          order.refill_status = 'Requested';
+          refillButton.textContent = 'Refill requested';
+          refillButton.disabled = true;
+          var requestDetail = document.createElement('div');
+          requestDetail.className = 'detail-item';
+          requestDetail.innerHTML = '<div class="detail-label">Refill request</div><div class="detail-value"></div>';
+          requestDetail.querySelector('.detail-value').textContent = 'Requested';
+          details.appendChild(requestDetail);
+        });
+        card.appendChild(refillButton);
+      }
       container.appendChild(card);
     });
   }

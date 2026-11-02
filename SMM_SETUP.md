@@ -8,12 +8,13 @@ Provider automation is not enabled. Add SMM services as regular products for man
 2. Set **Pricing type** to **Price per 1,000 units**. The target field switches to **Target link (SMM)**.
 3. Add a package option and enter its rate per 1,000 units (for example, Rs 50).
 4. Set the maximum quantity. The minimum order is 1,000 units.
-5. Activate the product when it is ready to appear in the storefront.
+5. For each purchase option, set its **Refill days** independently (for example, 30 days for one option and 40 for another). Set an option to `0` to disable its refills. If you do not add purchase options, set the base option's refill window instead.
+6. Activate the product when it is ready to appear in the storefront.
 
-Customers enter the target video, profile, or page URL and choose a quantity. The storefront previews and charges `rate per 1,000 × quantity ÷ 1,000`; for example, 1,500 units at Rs 50 per 1,000 costs Rs 75. The target URL is saved with the order and shown in the customer's profile and the admin order list.
+Customers enter the target video, profile, or page URL and choose a quantity. The storefront previews and charges `rate per 1,000 × quantity ÷ 1,000`; for example, 1,500 units at Rs 50 per 1,000 costs Rs 75. The target URL is saved with the order and shown in the customer's profile and the admin order list. After an order is marked **Completed**, eligible customers can submit one refill request from **My Orders** before their window expires. Manage requests in **Admin Panel → Orders** by changing the refill status.
 
 ## Database setup
 
-Run [`supabase-schema.sql`](./supabase-schema.sql) in the Supabase SQL editor. It includes the product pricing mode, minimum quantity, target-link account type, and order target URL fields.
+Run [`supabase-schema.sql`](./supabase-schema.sql) in the Supabase SQL editor. It includes the product pricing mode, per-option refill windows, minimum quantity, target-link account type, order refill fields, and the secure customer refill-request function.
 
 The separate [`smm_schema.sql`](./smm_schema.sql) and provider API configuration are only for a future provider-managed integration. They are not required for regular SMM-style products and do not enable automatic fulfillment.

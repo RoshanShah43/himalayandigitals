@@ -42,6 +42,7 @@ create table if not exists public.products (
   pricing_mode text not null default 'fixed',
   min_quantity integer not null default 1,
   max_quantity integer not null default 2147483647,
+  refill_days integer not null default 0 check (refill_days >= 0),
   packages jsonb not null default '[]'::jsonb check (jsonb_typeof(packages) = 'array'),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -50,7 +51,8 @@ create table if not exists public.products (
 alter table public.products
   add column if not exists pricing_mode text not null default 'fixed',
   add column if not exists min_quantity integer not null default 1,
-  add column if not exists max_quantity integer not null default 2147483647;
+  add column if not exists max_quantity integer not null default 2147483647,
+  add column if not exists refill_days integer not null default 0 check (refill_days >= 0);
 alter table public.products drop constraint if exists products_pricing_mode_check;
 alter table public.products add constraint products_pricing_mode_check
   check (pricing_mode in ('fixed', 'per_1000'));
@@ -86,6 +88,9 @@ create table if not exists public.orders (
   payment_method text not null check (payment_method in ('esewa', 'khalti', 'bank')),
   payment_code text not null,
   status text not null default 'Pending' check (status in ('Pending', 'Completed', 'Cancelled')),
+  refill_days integer not null default 0 check (refill_days >= 0),
+  refill_status text check (refill_status in ('Requested', 'Processing', 'Completed', 'Rejected')),
+  refill_requested_at timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -94,7 +99,10 @@ alter table public.orders
   add column if not exists discount_amount numeric(12,2) not null default 0 check (discount_amount >= 0),
   add column if not exists checkout_id uuid,
   add column if not exists target_url text not null default '',
-  add column if not exists whatsapp_number text not null default '';
+  add column if not exists whatsapp_number text not null default '',
+  add column if not exists refill_days integer not null default 0 check (refill_days >= 0),
+  add column if not exists refill_status text check (refill_status in ('Requested', 'Processing', 'Completed', 'Rejected')),
+  add column if not exists refill_requested_at timestamptz;
 
 create table if not exists public.coupons (
   id text primary key,
@@ -186,6 +194,9 @@ begin
   if not found then
     raise exception 'Product is unavailable';
   end if;
+  new.created_at := now();
+  new.refill_status := null;
+  new.refill_requested_at := null;
   if jsonb_array_length(product.packages) = 0 and new.package_id = 'default' then
     package_price := coalesce(product.discount_price, product.price);
     new.pack_label := '1 item';
@@ -199,6 +210,11 @@ begin
       new.pack_label := selected_package ->> 'label';
     end if;
   end if;
+  new.refill_days := case
+    when product.pricing_mode = 'per_1000' then
+      coalesce(nullif(selected_package ->> 'refill_days', '')::integer, product.refill_days)
+    else 0
+  end;
 
   if package_price is null or round(new.price, 2) <> round(package_price, 2) then
     raise exception 'Selected package or price is invalid';
@@ -325,6 +341,41 @@ begin
   return coupon.percent_off;
 end;
 $$;
+
+create or replace function public.request_order_refill(p_order_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  customer_order public.orders%rowtype;
+begin
+  if auth.uid() is null then
+    raise exception 'Sign in to request a refill';
+  end if;
+
+  select * into customer_order
+  from public.orders
+  where id = p_order_id and user_id = auth.uid()
+  for update;
+
+  if not found
+    or customer_order.refill_days <= 0
+    or customer_order.status <> 'Completed'
+    or now() > customer_order.created_at + customer_order.refill_days * interval '1 day'
+    or customer_order.refill_status is not null then
+    raise exception 'This order is not eligible for a refill request';
+  end if;
+
+  update public.orders
+  set refill_status = 'Requested', refill_requested_at = now()
+  where id = customer_order.id;
+end;
+$$;
+
+revoke all on function public.request_order_refill(uuid) from public, anon;
+grant execute on function public.request_order_refill(uuid) to authenticated;
 
 revoke all on function public.check_coupon(text) from public, anon;
 grant execute on function public.check_coupon(text) to authenticated;

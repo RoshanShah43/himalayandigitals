@@ -343,7 +343,8 @@ async function loadStoreCatalog() {
           return {
             id: String(pkg.id || ('package-' + index)),
             label: String(pkg.label || 'Package ' + (index + 1)),
-            value: Number(pkg.value)
+            value: Number(pkg.value),
+            refillDays: Number(pkg.refill_days) || 0
           };
         }),
         productId: product.id,
